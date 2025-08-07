@@ -1,0 +1,15 @@
+# Ignorar configuración de IDE
+.idea/
+
+
+# Ignorar node_modules globalmente
+**/node_modules/
+
+# Ignorar archivos de log
+*.log
+
+# Ignorar volúmenes persistentes si llegás a usarlos
+pgdata/
+
+# Ignorar build de React (si lo hacés manualmente)
+frontend/build/
