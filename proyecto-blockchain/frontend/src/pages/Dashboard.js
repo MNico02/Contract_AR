@@ -1,26 +1,321 @@
 import React, { useEffect, useState } from 'react';
 import api from '../api/api';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import MetaMaskButton from '../components/MetaMaskButton';
 
 const Dashboard = () => {
     const [contratos, setContratos] = useState([]);
+    const [stats, setStats] = useState({
+        total: 0,
+        pendientes: 0,
+        firmados: 0,
+        cancelados: 0
+    });
+    const [loading, setLoading] = useState(true);
+    const navigate = useNavigate();
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
 
     useEffect(() => {
-        api.get('/contratos')
-            .then(res => setContratos(res.data))
-            .catch(() => alert('Error al cargar contratos'));
+        cargarDatos();
     }, []);
 
+    const cargarDatos = async () => {
+        try {
+            const res = await api.get('/contratos');
+            setContratos(res.data);
+            
+            // Calcular estadísticas
+            const estadisticas = {
+                total: res.data.length,
+                pendientes: res.data.filter(c => c.estado === 'pendiente_firmas').length,
+                firmados: res.data.filter(c => c.estado === 'firmado').length,
+                cancelados: res.data.filter(c => c.estado === 'cancelado').length
+            };
+            setStats(estadisticas);
+        } catch (error) {
+            console.error('Error al cargar contratos:', error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleLogout = () => {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        navigate('/login');
+    };
+
+    const getEstadoBadge = (estado) => {
+        const badges = {
+            'borrador': 'bg-secondary',
+            'pendiente_firmas': 'bg-warning',
+            'firmado': 'bg-success',
+            'cancelado': 'bg-danger'
+        };
+        return badges[estado] || 'bg-secondary';
+    };
+
+    const formatDate = (dateString) => {
+        return new Date(dateString).toLocaleDateString('es-ES', {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric'
+        });
+    };
+
+    if (loading) {
+        return (
+            <div className="d-flex justify-content-center align-items-center min-vh-100">
+                <div className="spinner-border text-primary" role="status">
+                    <span className="visually-hidden">Cargando...</span>
+                </div>
+            </div>
+        );
+    }
+
     return (
-        <div>
-            <h2>Mis Contratos</h2>
-            <ul>
-                {contratos.map(c => (
-                    <li key={c.id}>
-                        <Link to={`/contratos/${c.id}`}>{c.titulo}</Link>
-                    </li>
-                ))}
-            </ul>
+        <div className="min-vh-100 bg-light">
+            {/* Navbar */}
+            <nav className="navbar navbar-expand-lg navbar-dark bg-primary shadow-sm">
+                <div className="container-fluid px-4">
+                    <a className="navbar-brand fw-bold" href="/dashboard">
+                        <i className="bi bi-shield-lock-fill me-2"></i>
+                        Blockchain Contracts
+                    </a>
+                    <button className="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                        <span className="navbar-toggler-icon"></span>
+                    </button>
+                    <div className="collapse navbar-collapse" id="navbarNav">
+                        <ul className="navbar-nav ms-auto align-items-center">
+                            <li className="nav-item me-3">
+                                <MetaMaskButton />
+                            </li>
+                            <li className="nav-item dropdown">
+                                <a className="nav-link dropdown-toggle text-white" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown">
+                                    <i className="bi bi-person-circle me-2"></i>
+                                    {user.nombre} {user.apellido}
+                                </a>
+                                <ul className="dropdown-menu dropdown-menu-end">
+                                    <li><a className="dropdown-item" href="#"><i className="bi bi-person me-2"></i>Mi Perfil</a></li>
+                                    <li><a className="dropdown-item" href="#"><i className="bi bi-gear me-2"></i>Configuración</a></li>
+                                    <li><hr className="dropdown-divider" /></li>
+                                    <li>
+                                        <button className="dropdown-item text-danger" onClick={handleLogout}>
+                                            <i className="bi bi-box-arrow-right me-2"></i>Cerrar Sesión
+                                        </button>
+                                    </li>
+                                </ul>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </nav>
+
+            <div className="container-fluid px-4 py-4">
+                {/* Welcome Section */}
+                <div className="row mb-4">
+                    <div className="col-12">
+                        <h2 className="fw-bold text-dark">
+                            Bienvenido, {user.nombre}
+                        </h2>
+                        <p className="text-muted">
+                            Gestiona tus contratos digitales de forma segura con tecnología blockchain
+                        </p>
+                    </div>
+                </div>
+
+                {/* Stats Cards */}
+                <div className="row mb-4">
+                    <div className="col-xl-3 col-md-6 mb-3">
+                        <div className="card border-0 shadow-sm h-100">
+                            <div className="card-body">
+                                <div className="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <h6 className="text-muted mb-2">Total Contratos</h6>
+                                        <h2 className="mb-0 fw-bold">{stats.total}</h2>
+                                    </div>
+                                    <div className="bg-primary bg-opacity-10 p-3 rounded">
+                                        <i className="bi bi-file-text text-primary fs-3"></i>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div className="col-xl-3 col-md-6 mb-3">
+                        <div className="card border-0 shadow-sm h-100">
+                            <div className="card-body">
+                                <div className="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <h6 className="text-muted mb-2">Pendientes</h6>
+                                        <h2 className="mb-0 fw-bold text-warning">{stats.pendientes}</h2>
+                                    </div>
+                                    <div className="bg-warning bg-opacity-10 p-3 rounded">
+                                        <i className="bi bi-clock-history text-warning fs-3"></i>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div className="col-xl-3 col-md-6 mb-3">
+                        <div className="card border-0 shadow-sm h-100">
+                            <div className="card-body">
+                                <div className="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <h6 className="text-muted mb-2">Firmados</h6>
+                                        <h2 className="mb-0 fw-bold text-success">{stats.firmados}</h2>
+                                    </div>
+                                    <div className="bg-success bg-opacity-10 p-3 rounded">
+                                        <i className="bi bi-check-circle text-success fs-3"></i>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div className="col-xl-3 col-md-6 mb-3">
+                        <div className="card border-0 shadow-sm h-100">
+                            <div className="card-body">
+                                <div className="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <h6 className="text-muted mb-2">Cancelados</h6>
+                                        <h2 className="mb-0 fw-bold text-danger">{stats.cancelados}</h2>
+                                    </div>
+                                    <div className="bg-danger bg-opacity-10 p-3 rounded">
+                                        <i className="bi bi-x-circle text-danger fs-3"></i>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Contracts Section */}
+                <div className="row">
+                    <div className="col-12">
+                        <div className="card border-0 shadow-sm">
+                            <div className="card-header bg-white py-3">
+                                <div className="d-flex justify-content-between align-items-center">
+                                    <h5 className="mb-0 fw-bold">Mis Contratos</h5>
+                                    <button className="btn btn-primary">
+                                        <i className="bi bi-plus-circle me-2"></i>
+                                        Nuevo Contrato
+                                    </button>
+                                </div>
+                            </div>
+                            <div className="card-body p-0">
+                                {contratos.length === 0 ? (
+                                    <div className="text-center py-5">
+                                        <i className="bi bi-folder-x text-muted" style={{ fontSize: '4rem' }}></i>
+                                        <p className="text-muted mt-3">No tienes contratos aún</p>
+                                        <button className="btn btn-primary mt-2">
+                                            <i className="bi bi-plus-circle me-2"></i>
+                                            Crear tu primer contrato
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <div className="table-responsive">
+                                        <table className="table table-hover mb-0">
+                                            <thead className="bg-light">
+                                                <tr>
+                                                    <th className="border-0 px-4">Título</th>
+                                                    <th className="border-0">Estado</th>
+                                                    <th className="border-0">Red</th>
+                                                    <th className="border-0">Fecha</th>
+                                                    <th className="border-0">Acciones</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {contratos.map(contrato => (
+                                                    <tr key={contrato.id}>
+                                                        <td className="px-4">
+                                                            <div>
+                                                                <h6 className="mb-0">{contrato.titulo}</h6>
+                                                                <small className="text-muted">{contrato.descripcion?.substring(0, 50)}...</small>
+                                                            </div>
+                                                        </td>
+                                                        <td>
+                                                            <span className={`badge ${getEstadoBadge(contrato.estado)}`}>
+                                                                {contrato.estado?.replace('_', ' ').toUpperCase()}
+                                                            </span>
+                                                        </td>
+                                                        <td>
+                                                            <span className="badge bg-info">
+                                                                {contrato.blockchain_network || 'Polygon'}
+                                                            </span>
+                                                        </td>
+                                                        <td className="text-muted">
+                                                            {formatDate(contrato.fecha_creacion)}
+                                                        </td>
+                                                        <td>
+                                                            <div className="btn-group" role="group">
+                                                                <Link 
+                                                                    to={`/contratos/${contrato.id}`} 
+                                                                    className="btn btn-sm btn-outline-primary"
+                                                                    title="Ver detalles"
+                                                                >
+                                                                    <i className="bi bi-eye"></i>
+                                                                </Link>
+                                                                <button 
+                                                                    className="btn btn-sm btn-outline-secondary"
+                                                                    title="Editar"
+                                                                >
+                                                                    <i className="bi bi-pencil"></i>
+                                                                </button>
+                                                                <button 
+                                                                    className="btn btn-sm btn-outline-danger"
+                                                                    title="Eliminar"
+                                                                >
+                                                                    <i className="bi bi-trash"></i>
+                                                                </button>
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Quick Actions */}
+                <div className="row mt-4">
+                    <div className="col-12">
+                        <div className="card border-0 shadow-sm">
+                            <div className="card-body">
+                                <h5 className="card-title fw-bold mb-3">Acciones Rápidas</h5>
+                                <div className="row">
+                                    <div className="col-md-3 mb-3">
+                                        <button className="btn btn-outline-primary w-100 py-3">
+                                            <i className="bi bi-file-earmark-plus fs-4 d-block mb-2"></i>
+                                            Nuevo Contrato
+                                        </button>
+                                    </div>
+                                    <div className="col-md-3 mb-3">
+                                        <button className="btn btn-outline-info w-100 py-3">
+                                            <i className="bi bi-people fs-4 d-block mb-2"></i>
+                                            Gestionar Firmantes
+                                        </button>
+                                    </div>
+                                    <div className="col-md-3 mb-3">
+                                        <button className="btn btn-outline-success w-100 py-3">
+                                            <i className="bi bi-graph-up fs-4 d-block mb-2"></i>
+                                            Ver Transacciones
+                                        </button>
+                                    </div>
+                                    <div className="col-md-3 mb-3">
+                                        <button className="btn btn-outline-warning w-100 py-3">
+                                            <i className="bi bi-gear fs-4 d-block mb-2"></i>
+                                            Configuración
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
     );
 };
