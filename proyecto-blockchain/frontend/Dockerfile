@@ -11,7 +11,7 @@ COPY package*.json ./
 RUN if [ -f package.json ]; then npm install; fi
 
 # Copiamos el resto del código
-COPY frontend .
+COPY . .
 
 # Puerto que usa React
 EXPOSE 3000

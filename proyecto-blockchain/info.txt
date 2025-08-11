@@ -1,0 +1,638 @@
+Plataforma de Contratos Inteligentes con Blockchain
+
+llamado contract_ar
+
+1. Introducción
+1.1 Descripción del Proyecto
+El objetivo de este proyecto es desarrollar una plataforma digital que permita la generación, firma y almacenamiento de contratos inteligentes utilizando tecnología blockchain. La plataforma garantizará la integridad, autenticidad y validez legal de los documentos firmados, eliminando la necesidad de intermediarios como escribanos o notarios.
+
+1.2 Objetivos/alcance
+Permitir la creación de contratos
+Firmar contratos de manera electrónica con wallets entre un proveedor y un consumidor.
+Garantizar la inmutabilidad y autenticidad de los contratos mediante blockchain.
+Evitar la alteración de los documentos después de la firma.
+Proporcionar un sistema seguro de vinculación entre las partes.
+Cumplir con los requerimientos legales vigentes en Argentina.
+Descargar contratos en formato PDF
+Reducir costos legales
+1.3 Mercado objetivo: Empresas, freelancers, inmobiliarias, empleadores, startups.
+1.4 Modelo de negocio:
+💰 Pago por contrato generado.
+
+
+2. Ingeniería de Requerimientos
+2.1 Requerimientos Funcionales
+Registro de Usuarios
+Permitir el registro e inicio de sesión mediante email/password o wallet
+Implementación de autenticación con 2FA para mayor seguridad.
+2. Gestión de Contratos
+Creación de contratos digitales con un identificador único (UUID).
+Permitir a los usuarios cargar contratos en PDF/DOCX   
+Edición y visualización previa al proceso de firma.
+3. Firma Digital
+Implementación de firma digital basada en claves privadas utilizando wallets (MetaMask, TrustWallet).
+Validación de la identidad del usuario antes de firmar.
+4. Almacenamiento en Blockchain
+Generación y Almacenamiento de los contratos en IPFS y registrar el hash en blockchain en diferentes etapas.
+Verificación de integridad a través de blockchain.
+5. Notificación a los Firmantes
+Notificaciones automáticas cuando un contrato está listo para ser firmado.
+Generar un PDF del contrato
+6. Historial de Contratos	
+Cada usuario podrá consultar los contratos que ha firmado.
+7. Verificación de Autenticidad
+Un sistema de consulta pública para verificar contratos.
+Modelo Canvas - Plataforma de Contratos Inteligentes en Blockchain
+1. Propuesta de Valor
+¿Qué valor le estarás ofreciendo a tus usuarios y clientes? Una plataforma digital segura y legalmente válida para generar, firmar y almacenar contratos inteligentes sin intermediarios.
+¿Cómo les ayuda tu producto/ servicio? Garantiza seguridad jurídica, reducción de costos y simplificación de procesos contractuales.
+¿Por qué estarían dispuestos a pagarte por ese producto/servicio? Porque evita la necesidad de escribanos, asegura inmutabilidad de los documentos y ahorra tiempo y dinero.
+2. Segmentos de Clientes/Usuarios
+¿Para quiénes estamos creando valor? Para profesionales, empresas, startups e inmobiliarias que necesiten contratos confiables.
+¿Quién es tu cliente? ¿Tienes más de un cliente? Empresas, freelancers, empleadores, inmobiliarias.
+¿Clientes que no pagan y los que sí? Los usuarios pueden explorar la plataforma sin costo, pero pagan por contrato generado.
+¿Quienes son nuestros clientes más importantes? Empresas e inmobiliarias por volumen de contratos.
+¿Cuál es su necesidad? Reducir costos y tiempo en procesos legales, evitando fraudes o alteraciones.
+3. Canales de distribución y comunicación
+¿Cómo desea cada segmento ser alcanzado? A través de una plataforma web fácil de usar.
+¿Cómo haces llegar tu producto/servicio? A través de internet, marketing digital y alianzas estratégicas.
+¿Cuáles son los puntos de interacción? Sitio web, redes sociales, email y ferias/eventos.
+¿Es un servicio online o producto físico? Servicio 100% online.
+¿Qué canales usás para...
+Dar a conocer: Publicidad digital, SEO, eventos.
+Evaluación: Demo gratuita, videos explicativos.
+Compra: Sitio web con pagos integrados.
+Entrega: Acceso inmediato al contrato en la plataforma y descarga PDF.
+Postventa: Soporte técnico y asesoría legal básica.
+4. Relación con Clientes
+¿Qué tipo de relaciones espera cada segmento? Atención rápida y clara, soporte accesible, experiencias automatizadas.
+¿Personal o automatizada? Ambos: chatbots + atención humana.
+¿Cómo harás que regresen? Buen servicio, planes con beneficios y mejora constante basada en feedback.
+5. Fuentes de Ingreso
+¿Cómo haces dinero? Por cada contrato generado.
+¿Cuánto están dispuestos a pagar? Tarifas accesibles comparadas con servicios notariales tradicionales.
+¿Cómo le gusta al cliente que le cobren? Por uso (pay-per-use) y también suscripciones.
+¿Ingreso transaccional o recurrente? Ambos: contratos únicos o planes mensuales/anuales.
+6. Recursos Clave
+¿Qué recursos son esenciales para tu modelo?
+Infraestructura cloud.
+Equipo de desarrollo blockchain.
+Asesoría legal.
+Plataforma web y servidores.
+Equipo comercial y de soporte.
+7. Actividades Clave
+¿Qué actividades clave haces para crear y entregar valor?
+Desarrollo y mantenimiento de la plataforma.
+Implementación de blockchain.
+Validación legal de funcionalidades.
+Marketing digital.
+Atención al usuario y capacitación.
+8. Red de Partners / Aliados Clave
+¿Qué aliados/proveedores son esenciales?
+Redes blockchain (Ethereum, Polygon).
+Estudios jurídicos.
+Plataformas de firma digital.
+Instituciones académicas para investigación.
+Aceleradoras o inversores.
+¿Qué obtienen tus aliados? Participación en el ecosistema, visibilidad, posibilidad de integración y expansión conjunta.
+9. Estructura de Costos
+¿Cuál es la estructura de costos resultante?
+Sueldos del equipo técnico y legal.
+Infraestructura en la nube.
+Licencias y dominios.
+Gastos en marketing y atención al cliente.
+Costos legales y regulatorios.
+¿Qué elementos influyen en los costos? Volumen de usuarios, complejidad del sistema, integración con tecnologías externas y campañas de posicionamiento.
+
+2.2 Requerimientos No Funcionales
+1. Seguridad: La plataforma debe ser altamente segura con cifrado AES y autenticación 2FA.
+2. Escalabilidad: Arquitectura descentralizada para permitir múltiples transacciones simultáneas.
+3. Disponibilidad: Plataforma accesible 24/7 con redundancia de servidores.
+4. Usabilidad: Interfaz intuitiva y adaptable a diferentes dispositivos.
+5. Integridad: Se debe garantizar que cada contrato tenga un hash único en blockchain.
+6.: Se deben usar estándares de seguridad ISO 27001 para la gestión de documentos.
+
+
+3. Requerimientos legales y regulatorios
+📜 Cumplir con la Ley 25.506 de Firma Digital en Argentina.
+📜 Cumplir con el Código Civil y Comercial en materia de contratos electrónicos.
+📜 Asegurar la privacidad de datos según la Ley 25.326 (Protección de Datos Personales).
+📜 Integración con RENAPER para validar identidad de los firmantes.
+4. Casos de Uso
+1.Registro e Inicio de Sesión
+Registrar usuario (opcional, si se usa autenticación con email).
+Iniciar sesión con email/password o wallet (MetaMask).
+2️Gestión de Contratos
+Generar contrato (subir documento o usar plantilla).
+Firmar contrato (validar con firma digital en blockchain).
+Verificar contrato (consultar hash en la blockchain).
+Descargar contrato (PDF con hash QR).
+3️Almacenamiento Descentralizado
+Subir contrato a IPFS (para descentralización).
+Obtener hash de IPFS (para registro en blockchain).
+4️Gestión de Usuarios y Wallets
+Asociar wallet a usuario.
+Ver contratos firmados.
+5️Notificaciones y Seguridad
+Notificar cuando una parte firme el contrato.
+Enviar alertas de expiración.
+
+4.1 Diagramas de Casos de Uso
+
+4.2 Descripción de Caso de Uso: Generar y Firmar un Contrato
+
+Descripción General
+Este caso de uso describe el proceso mediante el cual un proveedor y un consumidor firman un contrato digitalmente.
+
+Flujo de Eventos
+1. El proveedor 
+   -crea un contrato o sube un archivo ya existente
+   - Ingresa los términos del contrato en la plataforma.
+   -el proveedor firma digitalmente el contrato
+   -se sube el contrato firmado a ipsf, obteniendo hash1
+   -se registra en blockchain garantizando que este es el contrato firmado por el proveedor
+2. El consumidor 
+   - El consumidor descarga el documento desde ipsf usando hash1
+   -El documento no se puede modificar,solo se puede agregar la firma digital del consumidor
+   -El consumidor firma digitalmente el hash1,sin alterar el contenido del contrato
+   -Se genera un hash2, que es el hash1 + la firma del consumidor
+   -El hash2 se registra en la blockchain, vinculado al hash1
+3. Verificación y Finalización
+   - La plataforma verifica la validez de ambas firmas.
+   - se puede verificar el contrato recuperando hash2 y validando que hash1 sigue siendo el mismo
+3.1 Flujo Alternativo (Errores o Excepciones)
+❌ Firma rechazada: Si el usuario no autoriza la firma, el contrato no se sube.
+❌ Fallo en la conexión con blockchain: Si hay un error, se reintenta o se notifica al usuario.
+❌ Contrato inválido: Si el documento subido tiene errores de formato, se solicita corrección.
+4. Prevención de Fraudes y Seguridad
+1. Vinculación Segura de las Partes
+   - Uso de UUID para evitar modificaciones no autorizadas.
+   - Notificación interna en la plataforma para evitar compartir enlaces inseguros.
+2. Autenticación con 2FA
+   - Se requiere autenticación adicional antes de firmar.
+3. Contrato Inteligente
+- Smart contract que gestiona el estado de la firma y almacena las direcciones únicas de  los firmantes.
+4. Consulta de Validez Pública
+   - Cualquier usuario podrá verificar un contrato comparando el hash almacenado en blockchain con el documento descargado.
+5. Reglas de Negocio
+Solo los usuarios autenticados pueden generar contratos.
+La firma digital debe hacerse con wallets compatibles (MetaMask, WalletConnect, etc.).
+El contrato debe almacenarse en IPFS y su hash en la blockchain.
+Una vez firmado, el contrato permanece inmutable.
+
+
+
+🔄 Flujo Completo del Contrato en Blockchain
+⚙️ 1. Carga inicial del contrato
+El proveedor sube el contrato PDF (original o generado desde plantilla).
+Se genera un UUID único para identificar este contrato en la base de datos local.
+Se calcula el hash del documento PDF (por ejemplo, con SHA-256).
+El archivo PDF se sube a IPFS → te devuelve el ipfs_hash_1.
+El proveedor firma digitalmente el hash del archivo con su wallet (clave privada).
+Resultado:
+Se guarda en blockchain:
+json
+CopiarEditar
+{
+  "uuid": "abc123",
+  "ipfs_hash": "Qm....1",
+  "firma_proveedor": "0xFirmadeProveedor",
+  "hash_original": "SHA256(PDF)",
+  "timestamp": "...",
+  "estado": "FIRMADO_PROVEEDOR"
+}
+
+✍️ 2. Firma del consumidor
+El consumidor recibe el UUID e IPFS hash.
+Descarga el documento desde IPFS (que no se puede modificar).
+El consumidor verifica que el hash del archivo coincida con hash_original.
+Si está de acuerdo, firma ese mismo hash con su wallet.
+Resultado: Se actualiza el contrato en blockchain:
+json
+CopiarEditar
+{
+  "uuid": "abc123",
+  "firma_consumidor": "0xFirmadeConsumidor",
+  "hash_firma_final": "SHA256(firma_proveedor + firma_consumidor)",
+  "estado": "FIRMADO_AMBOS"
+}
+
+🔍 ¿Qué pasa si hay un problema legal?
+👨‍⚖️ Proceso de verificación:
+Supongamos que estás en juicio, y querés demostrar que el contrato fue firmado por ambas partes y que no fue modificado.
+Ingresás el UUID en tu plataforma → consulta los hashes guardados en blockchain.
+Descargás el archivo desde IPFS con el ipfs_hash.
+Calculás localmente el hash del archivo.
+Comparás con el hash_original de blockchain:
+Si coincide: el contrato no fue modificado.
+Luego verificás las firmas digitales:
+Usás las direcciones públicas (wallets) de las partes.
+Verificás que las firmas correspondan al hash del contrato.
+Esto puede hacerse 100% automáticamente con librerías como:
+ethers.js o web3.js para verificar firmas.
+ipfs-http-client para acceder al contrato.
+crypto.subtle (en navegador) para calcular hashes.
+
+🧠 ¿Qué se almacena en blockchain?
+No se almacena el contrato en sí, sino:
+El hash del contrato (prueba de integridad).
+Las firmas digitales (autenticación).
+El IPFS hash (referencia al documento real).
+Los UUIDs y timestamps.
+Esto garantiza:
+Inmutabilidad
+Prueba legal de firma
+Verificabilidad pública
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+🚀 Recomendaciones Finales
+Usá Ethereum o Polygon (más barato) con un contrato inteligente para gestionar los registros.
+Hash con SHA-256 (es el estándar y aceptado legalmente).
+Firmas con ECDSA (se usa en Ethereum).
+Verificación inversa: podés armar un botón que diga “Verificar contrato” que haga todo el proceso inverso:
+Recupera de IPFS
+Calcula hash
+Compara con blockchain
+Verifica firmas
+
+
+
+
+Recomendaciones para Minimizar Costos
+Usá Polygon o BNB Chain en vez de Ethereum para firmas → son rápidas y baratas.
+IPFS con Web3.Storage: tenés 5GB gratis y es ideal para documentos.
+Usá wallets Web3 (MetaMask) sin backend custodio: no almacenás claves → menos riesgo legal.
+Para el inicio, podés hostear todo en:
+Render.com para backend gratuito.
+Vercel para frontend.
+Implementar primero el sistema sin verificación con RENAPER, y sumarlo más adelante cuando escale.
+
+🧠 Tip Extra
+Si necesitás recibir pagos por contrato generado, podés usar Stripe o MercadoPago, que solo cobran comisión (ej. 5%) por cada transacción, sin costo fijo mensual.
+
+
+
+Si querés escalar y estar preparado legal y técnicamente, tenés que pensar una arquitectura modular, descentralizada y escalable, que te permita empezar con bajo costo y escalar sin tener que rehacer todo.
+
+🧱 Arquitectura Escalable y Económica para Plataforma de Contratos con Blockchain
+📌 Objetivos de la arquitectura:
+✅ Bajo costo inicial (MVP)
+✅ Escalable horizontalmente
+✅ Descentralización real (sin custodiar claves)
+✅ Preparada para cumplir normas legales
+✅ Listo para migrar a entornos más robustos (infraestructura nacional, cloud premium, etc.)
+
+🗂️ Visión General del Sistema
+ [ Usuario ]
+   ↓
+[ Frontend (React + MetaMask) ]
+   ↓
+[ Backend (Node.js + Express) ]   → [ MongoDB Atlas (usuarios/UUID/firma) ]
+   ↓
+[ IPFS (Web3.Storage / Infura) ]   ↔   [ Smart Contract (Polygon/BNB Chain) ]
+
+🔍 COMPONENTES CLAVE
+🧑‍💻 Frontend (React + MetaMask + ethers.js/web3.js)
+Maneja UI: login, carga de contrato, firma.
+Se comunica con MetaMask para firmar sin exponer claves privadas.
+Verifica y muestra el hash del contrato y la dirección firmante.
+Se conecta a IPFS y blockchain usando APIs públicas.
+🔙 Backend (Node.js + Express + Firebase o MongoDB Atlas)
+Autenticación básica + 2FA (puede ser con Firebase Auth).
+Guarda UUIDs, estado de contratos, direcciones de firmantes.
+Se comunica con IPFS para subir archivos y obtener el hash.
+Envía datos al Smart Contract para registro en la blockchain.
+Backend NO FIRMA NI ALMACENA claves privadas → legalmente más seguro.
+📁 IPFS (Web3.Storage o Pinata)
+Guarda el PDF firmado por el proveedor y luego por el consumidor.
+Devuelve un hash que se usa como evidencia de inmutabilidad.
+Gratuito hasta 5GB con Web3.Storage.
+⛓️ Blockchain (Polygon o BNB Chain)
+Se registra:
+UUID
+IPFS hash
+Firma proveedor
+Firma consumidor
+Timestamp
+Podés crear un Smart Contract que almacene un struct tipo:
+solidity
+CopiarEditar
+struct Contrato {
+  string uuid;
+  string ipfsHash;
+  address firmanteA;
+  bytes firmaA;
+  address firmanteB;
+  bytes firmaB;
+  uint256 fecha;
+}
+📤 Verificador Público
+Una página donde cualquier persona pone un UUID o documento y:
+Consulta el blockchain.
+Descarga desde IPFS.
+Verifica hashes y firmas.
+
+☁️ Hosting Sugerido para el MVP
+Componente
+Proveedor
+Plan
+Frontend (React)
+Vercel
+Gratis
+Backend (Node.js)
+Render.com
+Gratis 500h/mes
+DB (usuarios)
+Firebase o MongoDB Atlas
+Gratis
+IPFS
+Web3.Storage
+5GB Gratis
+Blockchain
+Polygon o BNB Testnet (para pruebas)
+Gratis o centavos
+
+
+📈 Escalabilidad futura
+Cuando escale:
+Podés mover backend a AWS o Google Cloud.
+Agregar microservicios con Docker/Kubernetes.
+Integrar con RENAPER y firma digital avanzada.
+Crear una DAO para gobernanza descentralizada de contratos públicos.
+
+✅ BONUS: Legal Readiness
+Todo lo que firmás queda asociado a una wallet pública → identidad.
+Con integración a RENAPER, validás identidad real.
+Al guardar el hash en blockchain, probás que el documento no fue alterado.
+No custodiar claves privadas → te exime de mucha responsabilidad legal.
+
+
+
+
+
+
+
+
+
+classDiagram
+    %% Clases principales
+    class Contrato {
+        - uuid: String
+        - ipfsHash: String
+        - hashOriginal: String
+        - firmas: Map<String, String>       %% clave: rol, valor: firma
+        - hashFirmaFinal: String
+        - timestampCreacion: DateTime
+        - timestampFirmaConsumidor: DateTime
+        - estado: EstadoContrato
+        + calcularHashPDF(pdf: File): String
+        + calcularHashFirma(): String
+    }
+
+
+
+
+    class Parte {
+        - idParte: String
+        - nombre: String
+        - clavePrivada: String
+        - roles: List<RolParte>             %% PROVEEDOR, CONSUMIDOR o ambos
+        + firmar(dato: String): String
+        + subirPDFaIPFS(pdf: File): String
+        + descargarDesdeIPFS(ipfsHash: String): File
+        + verificarHash(pdf: File, hashEsperado: String): Boolean
+    }
+
+
+    class IPFSService {
+        + upload(file: File): String
+        + download(hash: String): File
+    }
+
+    class BlockchainService {
+        + guardarRegistroContrato(reg: RegistroBlockchain): void
+        + actualizarRegistroContrato(uuid: String, datos: RegistroBlockchain): void
+        + obtenerRegistro(uuid: String): RegistroBlockchain
+    }
+
+    class RegistroBlockchain {
+        - uuid: String
+        - ipfsHash: String
+        - hashOriginal: String
+        - firmas: Map<String, String>
+        - hashFirmaFinal: String
+        - timestamp: DateTime
+        - estado: EstadoContrato
+    }
+
+    class Verificador {
+        + verificarIntegridad(pdf: File, hashOriginal: String): Boolean
+        + verificarFirma(dato: String, firma: String, clavePublica: String): Boolean
+    }
+
+    %% Enumeraciones
+    class EstadoContrato {
+        <<enumeration>>
+        + FIRMADO_PROVEEDOR
+        + FIRMADO_AMBOS
+        + EN_JUICIO
+        + COMPLETADO
+        + RECHAZADO
+    }
+
+    class RolParte {
+        <<enumeration>>
+        + PROVEEDOR
+        + CONSUMIDOR
+    }
+
+    %% Relaciones
+    Parte "1" --> "1..*" Contrato : inicia/firma
+    Contrato --> IPFSService : usa
+    Contrato --> BlockchainService : usa
+    BlockchainService --> RegistroBlockchain : persiste
+    Verificador ..> Contrato : verifica
+    Verificador --> IPFSService : descarga
+    Verificador --> BlockchainService : lee registro
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+classDiagram
+    %% ======================
+    %% Clases principales
+    %% ======================
+
+    class Usuario {
+        - idUsuario: String
+        - email: String
+        - passwordHash: String
+        - nombre: String
+        - apellido: String
+        - walletAddress: String(clave privada)
+
+(+ subirPDFaIPFS(pdf: File): String
+        + firmar(dato: String): String
+        + descargarDesdeIPFS(ipfsHash: String): File
+        + verificarFirma(dato: String, firma: String, clavePublica: String): Boolean
++ String getIdUsuario()
+        + String getNombre()
+
+    }
+)
+
+     
+        - rolSistema: String   %% admin / usuario
+        + autenticar(email: String, password: String): Boolean
+        + generarWallet(): String
+    }
+
+    class Firmante {
+        - idParte: String
+        - usuario: Usuario
+        - roles: List<RolParte>
+        + firmar(dato: String): String
+        + subirPDFaIPFS(pdf: File): String
+        + descargarDesdeIPFS(ipfsHash: String): File
+        + verificarHash(pdf: File, hashEsperado: String): Boolean
+    }
+
+    class Contrato {
+        - uuid: String
+        - ipfsHash: String
+          - firma1: String           %% primera firma sobre ipfsHash
+        - firma2: String           %% segunda firma sobre ipfsHash ∥ firma1
+        - timestampFirma1: DateTime
+        - timestampFirma2: DateTime
+        - estado: EstadoContrato
+        - creador: Usuario
+        + calcularHashPDF(pdf: File): String
+        + calcularHashFirma(): String
+( 
++ Contrato(ipfsHash: String)
+        + String calcularHashPDF(pdfBytes: byte[])
+        + String firmarDatos(byte[] datos, PrivateKey clavePrivada)
+        + void aplicarFirma1(PrivateKey clavePrivadaUsuario1)
+        + byte[] generarDatoParaFirma2()
+        + void aplicarFirma2(PrivateKey clavePrivadaUsuario2)
+        + boolean verificarFirma(byte[] datos, String firma, PublicKey clavePublica)
+        + String getUuid()
+        + String getIpfsHash()
+        + String getFirma1()
+        + String getFirma2()
+        + EstadoContrato getEstado()
+)
+    }
+
+
+  
+
+
+    class IPFSService {
+        + upload(file: File): String
+        + download(hash: String): File
+    }
+
+    class BlockchainService {
+       + void guardarContrato(Contrato contrato)
+        + void actualizarContrato(String uuid, String firma, EstadoContrato nuevoEstado)
+        + Contrato obtenerContrato(String uuid)
+    }
+
+    class RegistroBlockchain {
+     - uuid: String
+        - ipfsHash: String
+        - firma1: String
+        - firma2: String
+        - timestamp: DateTime
+        - estado: EstadoContrato
+        + String getUuid()
+        + String getIpfsHash()
+        + String getFirma1()
+        + String getFirma2()
+        + DateTime getTimestamp()
+        + EstadoContrato getEstado()
+    }
+
+    class Verificador {
+        + verificarIntegridad(String ipfsHash): file
+        + verificarFirma(dato: String, firma: String, clavePublica: String): Boolean
+    }
+
+    %% ======================
+    %% Enumeraciones
+    %% ======================
+
+    class EstadoContrato {
+        <<enumeration>>
+        + SUBIDO
+        + FIRMADO_1
+        + FIRMADO_2
+        + EN_JUICIO
+        + COMPLETADO
+        + RECHAZADO
+
+    }
+
+    class RolParte {
+        <<enumeration>>
+        + PROVEEDOR
+        + CONSUMIDOR
+    }
+
+    %% ======================
+    %% Relaciones
+    %% ======================
+
+    Usuario "1" --> "0..*" Parte : participa como
+    Parte "1" --> "1..*" Contrato : inicia/firma
+    Contrato --> IPFSService : usa
+    Contrato --> BlockchainService : usa
+    BlockchainService --> RegistroBlockchain : persiste
+    Verificador ..> Contrato : verifica
+    Verificador --> IPFSService : descarga
+    Verificador --> BlockchainService : lee registro
+
+
