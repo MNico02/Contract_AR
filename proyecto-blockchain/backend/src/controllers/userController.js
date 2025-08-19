@@ -7,76 +7,107 @@ import logger from "../utils/logger.js";
 // Crear usuario de prueba (temporal)
 export const createTestUser = async (req, res) => {
     try {
-        // Hashear contraseña
-        const passwordHash = await bcrypt.hash("admin123", 10);
+        const email = "admin@example.com";
+        const password = "admin123";
+
+        // Evitar duplicado si ya existe
+        const existe = await userModel.getUserByEmail(email);
+        if (existe) {
+            return res.json({
+                mensaje: "El usuario de prueba ya existe",
+                usuario: { email, password }
+            });
+        }
+
+        const passwordHash = await bcrypt.hash(password, 10);
 
         const testUser = await userModel.createUser({
-            email: "admin@example.com",
+            email,
             passwordHash,
             nombre: "Admin",
             apellido: "Sistema",
             telefono: "123456789",
-            rol_id: 1 // rol admin
+            rol_id: 1 // admin
         });
 
-        res.json({
+        return res.json({
             mensaje: "Usuario de prueba creado exitosamente",
             usuario: {
-                email: "admin@example.com",
-                password: "admin123",
+                email,
+                password,
                 nombre: testUser.nombre,
                 apellido: testUser.apellido,
                 rol: "admin"
             }
         });
     } catch (error) {
-        if (error.code === '23505') { // Código de error PostgreSQL para duplicado
-            res.json({
-                mensaje: "El usuario de prueba ya existe",
-                usuario: {
-                    email: "admin@example.com",
-                    password: "admin123"
-                }
-            });
-        } else {
-            console.error("Error al crear usuario de prueba:", error);
-            res.status(500).json({ error: "Error al crear usuario de prueba" });
-        }
+        console.error("Error al crear usuario de prueba:", error);
+        return res.status(500).json({ error: "Error al crear usuario de prueba" });
     }
 };
-
 
 
 export const loginUsuario = async (req, res) => {
     const { email, password } = req.body;
 
     try {
-        // Buscar usuario
+        // 1) Validar input
+        if (!email || !password) {
+            return res.status(400).json({ error: "Email y password son requeridos" });
+        }
+
+        // 2) Buscar usuario (con rol por JOIN en el modelo)
         const usuario = await userModel.getUserByEmail(email);
         if (!usuario) {
             return res.status(404).json({ error: "Usuario no encontrado" });
         }
 
-        // Verificar si está activo
-        if (!usuario.estado) {
+        // 3) Activo/inactivo
+        if (usuario.estado === false) {
             return res.status(403).json({ error: "Usuario inactivo" });
         }
 
-        // Verificar contraseña
-        const passwordValida = await bcrypt.compare(password, usuario.password_hash);
+        // 4) Validar que exista el hash y comparar
+        if (!usuario.password_hash) {
+            console.error("[LOGIN] password_hash vacío en BD para", email);
+            return res.status(500).json({ error: "Password hash faltante en BD" });
+        }
+
+        let passwordValida = false;
+        try {
+            passwordValida = await bcrypt.compare(password, usuario.password_hash);
+        } catch (e) {
+            console.error("[LOGIN] Error bcrypt.compare:", e);
+            return res.status(500).json({ error: "Error comparando contraseña" });
+        }
+
         if (!passwordValida) {
             return res.status(401).json({ error: "Credenciales inválidas" });
         }
 
-        // Generar token
-        const token = jwt.sign(
-            { id: usuario.id, uuid: usuario.uuid, rol: usuario.rol },
-            process.env.JWT_SECRET,
-            { expiresIn: "2h" }
-        );
+        // 5) Firmar JWT (usa tu JWT_SECRET del .env)
+        if (!process.env.JWT_SECRET) {
+            console.error("[LOGIN] JWT_SECRET no definido");
+            return res.status(500).json({ error: "Configuración JWT inválida" });
+        }
 
-        // Respuesta
-        res.json({
+        let token;
+        try {
+            token = jwt.sign(
+                { id: usuario.id, uuid: usuario.uuid, rol: usuario.rol },
+                process.env.JWT_SECRET,
+                { expiresIn: "2h" }
+            );
+        } catch (e) {
+            console.error("[LOGIN] Error en jwt.sign:", e);
+            return res.status(500).json({ error: "Error generando token" });
+        }
+
+        // 6) Actualizar última conexión (no bloquea respuesta)
+        userModel.updateLastConnection(usuario.id).catch(() => {});
+
+        // 7) Respuesta
+        return res.json({
             mensaje: "Login exitoso",
             token,
             usuario: {
@@ -91,7 +122,7 @@ export const loginUsuario = async (req, res) => {
 
     } catch (error) {
         console.error("Error en login:", error);
-        res.status(500).json({ error: "Error interno en login" });
+        return res.status(500).json({ error: "Error interno en login" });
     }
 };
 
