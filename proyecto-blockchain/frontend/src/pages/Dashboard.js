@@ -195,10 +195,13 @@ const Dashboard = () => {
                             <div className="card-header bg-white py-3">
                                 <div className="d-flex justify-content-between align-items-center">
                                     <h5 className="mb-0 fw-bold">Mis Contratos</h5>
-                                    <button className="btn btn-primary">
+
+                                    <Link to="/contratos/nuevo" className="btn btn-primary">
                                         <i className="bi bi-plus-circle me-2"></i>
                                         Nuevo Contrato
-                                    </button>
+                                    </Link>
+
+
                                 </div>
                             </div>
                             <div className="card-body p-0">
@@ -206,10 +209,10 @@ const Dashboard = () => {
                                     <div className="text-center py-5">
                                         <i className="bi bi-folder-x text-muted" style={{ fontSize: '4rem' }}></i>
                                         <p className="text-muted mt-3">No tienes contratos aún</p>
-                                        <button className="btn btn-primary mt-2">
+                                        <Link to="/contratos/nuevo" className="btn btn-primary">
                                             <i className="bi bi-plus-circle me-2"></i>
                                             Crear tu primer contrato
-                                        </button>
+                                        </Link>
                                     </div>
                                 ) : (
                                     <div className="table-responsive">
@@ -287,11 +290,12 @@ const Dashboard = () => {
                                 <h5 className="card-title fw-bold mb-3">Acciones Rápidas</h5>
                                 <div className="row">
                                     <div className="col-md-3 mb-3">
-                                        <button className="btn btn-outline-primary w-100 py-3">
+                                        <Link to="/contratos/nuevo" className="btn btn-outline-primary w-100 py-3">
                                             <i className="bi bi-file-earmark-plus fs-4 d-block mb-2"></i>
                                             Nuevo Contrato
-                                        </button>
+                                        </Link>
                                     </div>
+
                                     <div className="col-md-3 mb-3">
                                         <button className="btn btn-outline-info w-100 py-3">
                                             <i className="bi bi-people fs-4 d-block mb-2"></i>
