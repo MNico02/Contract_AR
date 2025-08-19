@@ -20,6 +20,7 @@ router.post("/login", loginUsuario);
 router.post("/register", createUser);
 
 // Ruta temporal para crear usuario de prueba
+router.post("/create-test", createTestUser);
 router.get("/create-test", createTestUser);
 
 // Rutas protegidas
