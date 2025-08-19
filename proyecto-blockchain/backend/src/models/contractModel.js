@@ -16,7 +16,7 @@ export const getAllContracts = async (filters = {}) => {
             c.estado_id,
             rb.nombre AS blockchain_network,
             c.fecha_creacion,
-            c.fecha_actualizacion,
+            c.fecha_firmado,
             u.nombre || ' ' || u.apellido AS creador,
             c.creador_id
         FROM contratos c
