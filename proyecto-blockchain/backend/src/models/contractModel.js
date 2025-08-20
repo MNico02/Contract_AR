@@ -16,7 +16,7 @@ export const getAllContracts = async (filters = {}) => {
             c.estado_id,
             rb.nombre AS blockchain_network,
             c.fecha_creacion,
-            c.fecha_actualizacion,
+            c.fecha_firmado,
             u.nombre || ' ' || u.apellido AS creador,
             c.creador_id
         FROM contratos c
@@ -25,7 +25,7 @@ export const getAllContracts = async (filters = {}) => {
         LEFT JOIN redes_blockchain rb ON c.blockchain_network_id = rb.id
         WHERE 1=1
     `;
-    
+
     const values = [];
     let paramCount = 1;
 
@@ -86,7 +86,6 @@ export const getContractById = async (id) => {
             c.uuid,
             c.titulo,
             c.descripcion,
-            c.contenido,
             c.ipfs_hash,
             c.ipfs_url,
             c.blockchain_hash,
@@ -95,8 +94,7 @@ export const getContractById = async (id) => {
             c.estado_id,
             rb.nombre AS blockchain_network,
             c.fecha_creacion,
-            c.fecha_actualizacion,
-            c.fecha_vencimiento,
+            c.fecha_firmado,
             u.id as creador_id,
             u.nombre || ' ' || u.apellido AS creador,
             u.email as creador_email
@@ -110,41 +108,32 @@ export const getContractById = async (id) => {
 };
 
 // Crear contrato
-export const createContract = async ({ 
-    titulo, 
-    descripcion, 
-    contenido,
-    ipfs_hash, 
-    ipfs_url, 
-    creador_id,
-    blockchain_network_id,
-    fecha_vencimiento,
-    tipo_contrato
-}) => {
+export const createContract = async ({
+                                         titulo,
+                                         descripcion,
+                                         ipfs_hash,
+                                         ipfs_url,
+                                         creador_id,
+                                         blockchain_network_id
+                                     }) => {
     const result = await pool.query(`
         INSERT INTO contratos (
             titulo, 
             descripcion, 
-            contenido,
             ipfs_hash, 
             ipfs_url, 
             creador_id,
-            blockchain_network_id,
-            fecha_vencimiento,
-            tipo_contrato
+            blockchain_network_id
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+        VALUES ($1, $2, $3, $4, $5, $6)
         RETURNING *
     `, [
-        titulo, 
-        descripcion, 
-        contenido || '',
-        ipfs_hash, 
-        ipfs_url, 
+        titulo,
+        descripcion,
+        ipfs_hash,
+        ipfs_url,
         creador_id,
-        blockchain_network_id || 1,
-        fecha_vencimiento,
-        tipo_contrato || 'otro'
+        blockchain_network_id || 1
     ]);
     return result.rows[0];
 };
@@ -170,7 +159,7 @@ export const updateContract = async (id, updates) => {
 
     setClause.push(`fecha_actualizacion = CURRENT_TIMESTAMP`);
     values.push(id);
-    
+
     const query = `
         UPDATE contratos 
         SET ${setClause.join(', ')}
@@ -218,7 +207,7 @@ export const updateBlockchainHash = async (id, blockchain_hash, transaction_hash
 export const getContractStats = async (userId = null) => {
     let whereClause = '';
     const values = [];
-    
+
     if (userId) {
         whereClause = 'WHERE c.creador_id = $1';
         values.push(userId);

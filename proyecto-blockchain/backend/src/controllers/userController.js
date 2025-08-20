@@ -7,41 +7,45 @@ import logger from "../utils/logger.js";
 // Crear usuario de prueba (temporal)
 export const createTestUser = async (req, res) => {
     try {
-        // Hashear contraseña
-        const passwordHash = await bcrypt.hash("admin123", 10);
+        const email = "admin@example.com";
+        const password = "admin123";
+
+        // Evitar duplicado si ya existe
+        const existe = await userModel.getUserByEmail(email);
+        if (existe) {
+            return res.json({
+                mensaje: "El usuario de prueba ya existe",
+                usuario: { email, password }
+            });
+        }
+
+        const passwordHash = await bcrypt.hash(password, 10);
 
         const testUser = await userModel.createUser({
-            email: "admin@example.com",
+            email,
             passwordHash,
             nombre: "Admin",
             apellido: "Sistema",
             telefono: "123456789",
-            rol_id: 1 // rol admin
+            rol_id: 1 // admin
         });
 
-        res.json({
+        return res.json({
             mensaje: "Usuario de prueba creado exitosamente",
             usuario: {
-                email: "admin@example.com",
-                password: "admin123",
+                email,
+                password,
                 nombre: testUser.nombre,
                 apellido: testUser.apellido,
                 rol: "admin"
             }
         });
     } catch (error) {
-        if (error.code === '23505') { // Código de error PostgreSQL para duplicado
-            res.json({
-                mensaje: "El usuario de prueba ya existe",
-                usuario: {
-                    email: "admin@example.com",
-                    password: "admin123"
-                }
-            });
-        } else {
-            console.error("Error al crear usuario de prueba:", error);
-            res.status(500).json({ error: "Error al crear usuario de prueba" });
-        }
+        console.error("Error al crear usuario de prueba:", error); // ya lo tenés
+        return res.status(500).json({
+            error: "Error al crear usuario de prueba",
+            detalle: error.message   // <-- agregar SOLO en dev
+        });
     }
 };
 
@@ -51,32 +55,63 @@ export const loginUsuario = async (req, res) => {
     const { email, password } = req.body;
 
     try {
-        // Buscar usuario
+        // 1) Validar input
+        if (!email || !password) {
+            return res.status(400).json({ error: "Email y password son requeridos" });
+        }
+
+        // 2) Buscar usuario (con rol por JOIN en el modelo)
         const usuario = await userModel.getUserByEmail(email);
         if (!usuario) {
             return res.status(404).json({ error: "Usuario no encontrado" });
         }
 
-        // Verificar si está activo
-        if (!usuario.estado) {
+        // 3) Activo/inactivo
+        if (usuario.estado === false) {
             return res.status(403).json({ error: "Usuario inactivo" });
         }
 
-        // Verificar contraseña
-        const passwordValida = await bcrypt.compare(password, usuario.password_hash);
+        // 4) Validar que exista el hash y comparar
+        if (!usuario.password_hash) {
+            console.error("[LOGIN] password_hash vacío en BD para", email);
+            return res.status(500).json({ error: "Password hash faltante en BD" });
+        }
+
+        let passwordValida = false;
+        try {
+            passwordValida = await bcrypt.compare(password, usuario.password_hash);
+        } catch (e) {
+            console.error("[LOGIN] Error bcrypt.compare:", e);
+            return res.status(500).json({ error: "Error comparando contraseña" });
+        }
+
         if (!passwordValida) {
             return res.status(401).json({ error: "Credenciales inválidas" });
         }
 
-        // Generar token
-        const token = jwt.sign(
-            { id: usuario.id, uuid: usuario.uuid, rol: usuario.rol },
-            process.env.JWT_SECRET,
-            { expiresIn: "2h" }
-        );
+        // 5) Firmar JWT (usa tu JWT_SECRET del .env)
+        if (!process.env.JWT_SECRET) {
+            console.error("[LOGIN] JWT_SECRET no definido");
+            return res.status(500).json({ error: "Configuración JWT inválida" });
+        }
 
-        // Respuesta
-        res.json({
+        let token;
+        try {
+            token = jwt.sign(
+                { id: usuario.id, uuid: usuario.uuid, rol: usuario.rol },
+                process.env.JWT_SECRET,
+                { expiresIn: "2h" }
+            );
+        } catch (e) {
+            console.error("[LOGIN] Error en jwt.sign:", e);
+            return res.status(500).json({ error: "Error generando token" });
+        }
+
+        // 6) Actualizar última conexión (no bloquea respuesta)
+        userModel.updateLastConnection(usuario.id).catch(() => {});
+
+        // 7) Respuesta
+        return res.json({
             mensaje: "Login exitoso",
             token,
             usuario: {
@@ -85,15 +120,17 @@ export const loginUsuario = async (req, res) => {
                 email: usuario.email,
                 nombre: usuario.nombre,
                 apellido: usuario.apellido,
+                telefono: usuario.telefono,
                 rol: usuario.rol
             }
         });
 
     } catch (error) {
         console.error("Error en login:", error);
-        res.status(500).json({ error: "Error interno en login" });
+        return res.status(500).json({ error: "Error interno en login" });
     }
 };
+
 
 // Obtener todos los usuarios
 export const getUsers = async (req, res) => {
@@ -160,18 +197,35 @@ export const createUser = async (req, res) => {
         res.status(500).json({ error: "Error al crear usuario" });
     }
 };
+export const updateProfile = async (req, res) => {
+    try {
+        console.log("👉 updateProfile body:", req.body, "usuario:", req.usuario);
+
+        const id = req.usuario.id;
+        const updatedUser = await userModel.updateUser(id, req.body);
+
+        if (!updatedUser) {
+            return res.status(404).json({ error: "Usuario no encontrado" });
+        }
+
+        res.json(updatedUser);
+    } catch (error) {
+        console.error("❌ Error en updateProfile:", error);
+        res.status(500).json({ error: "Error al actualizar perfil" });
+    }
+};
 
 // Actualizar usuario
 export const updateUser = async (req, res) => {
     try {
         const { id } = req.params;
-        
-        // Verificar que el usuario solo pueda actualizar su propio perfil
+
+        // Solo el dueño del perfil o un admin pueden actualizar
         if (req.usuario.id !== parseInt(id) && req.usuario.rol !== 'admin') {
             return res.status(403).json({ error: "No autorizado para actualizar este perfil" });
         }
 
-        // Validar datos de entrada
+        // Validar datos
         const { error } = validateUserUpdate(req.body);
         if (error) {
             return res.status(400).json({ error: error.details[0].message });
@@ -194,13 +248,13 @@ export const updateUser = async (req, res) => {
 export const changePassword = async (req, res) => {
     try {
         const { id } = req.params;
-        
-        // Verificar que el usuario solo pueda cambiar su propia contraseña
+
+        // Solo el dueño puede cambiar su contraseña
         if (req.usuario.id !== parseInt(id)) {
             return res.status(403).json({ error: "No autorizado para cambiar esta contraseña" });
         }
 
-        // Validar datos de entrada
+        // Validar datos
         const { error } = validatePasswordChange(req.body);
         if (error) {
             return res.status(400).json({ error: error.details[0].message });
@@ -208,20 +262,22 @@ export const changePassword = async (req, res) => {
 
         const { currentPassword, newPassword } = req.body;
 
-        // Obtener usuario y verificar contraseña actual
+        // Obtener usuario
         const user = await userModel.getUserById(id);
         if (!user) {
             return res.status(404).json({ error: "Usuario no encontrado" });
         }
 
-        // Necesitamos obtener el password_hash
+        // Traer también el password_hash
         const userWithPassword = await userModel.getUserByEmail(user.email);
+
+        // Verificar contraseña actual
         const isValidPassword = await bcrypt.compare(currentPassword, userWithPassword.password_hash);
         if (!isValidPassword) {
             return res.status(401).json({ error: "Contraseña actual incorrecta" });
         }
 
-        // Hashear nueva contraseña
+        // Hashear y guardar nueva contraseña
         const newPasswordHash = await bcrypt.hash(newPassword, 10);
         await userModel.updatePassword(id, newPasswordHash);
 
@@ -232,13 +288,12 @@ export const changePassword = async (req, res) => {
         res.status(500).json({ error: "Error al cambiar contraseña" });
     }
 };
-
 // Obtener actividad del usuario
 export const getUserActivity = async (req, res) => {
     try {
         const { id } = req.params;
         const { limit = 50 } = req.query;
-        
+
         // Verificar que el usuario solo pueda ver su propia actividad
         if (req.usuario.id !== parseInt(id) && req.usuario.rol !== 'admin') {
             return res.status(403).json({ error: "No autorizado para ver esta actividad" });
@@ -256,7 +311,7 @@ export const getUserActivity = async (req, res) => {
 export const getUserStats = async (req, res) => {
     try {
         const { id } = req.params;
-        
+
         // Verificar que el usuario solo pueda ver sus propias estadísticas
         if (req.usuario.id !== parseInt(id) && req.usuario.rol !== 'admin') {
             return res.status(403).json({ error: "No autorizado para ver estas estadísticas" });
@@ -274,7 +329,7 @@ export const getUserStats = async (req, res) => {
 export const deleteUser = async (req, res) => {
     try {
         const { id } = req.params;
-        
+
         // Solo admins pueden eliminar usuarios
         if (req.usuario.rol !== 'admin') {
             return res.status(403).json({ error: "No autorizado para eliminar usuarios" });

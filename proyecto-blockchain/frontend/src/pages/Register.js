@@ -88,7 +88,7 @@ const Register = () => {
 
         setLoading(true);
         try {
-            await api.post('/usuarios', {
+            await api.post('/usuarios/register', {
                 nombre: formData.nombre,
                 apellido: formData.apellido,
                 email: formData.email,

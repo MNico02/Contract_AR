@@ -11,6 +11,8 @@ const Contracts = () => {
     const [viewMode, setViewMode] = useState('grid'); // 'grid' or 'table'
     const [currentPage, setCurrentPage] = useState(1);
     const [itemsPerPage] = useState(9);
+    const [deletingId, setDeletingId] = useState(null);
+    const [downloadingId, setDownloadingId] = useState(null);
 
     useEffect(() => {
         cargarContratos();
@@ -31,33 +33,92 @@ const Contracts = () => {
             setLoading(false);
         }
     };
-
     const filtrarContratos = () => {
         let filtered = [...contratos];
 
         // Filtrar por búsqueda
         if (searchTerm) {
-            filtered = filtered.filter(c => 
-                c.titulo?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                c.descripcion?.toLowerCase().includes(searchTerm.toLowerCase())
+            filtered = filtered.filter(
+                (c) =>
+                    c.titulo?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                    c.descripcion?.toLowerCase().includes(searchTerm.toLowerCase())
             );
         }
 
+
+
         // Filtrar por estado
         if (filterStatus !== 'todos') {
-            filtered = filtered.filter(c => c.estado === filterStatus);
+            filtered = filtered.filter((c) => c.estado === filterStatus);
         }
 
         setFilteredContratos(filtered);
         setCurrentPage(1);
     };
+    const handleDelete = async (id) => {
+        const ok = window.confirm('¿Eliminar el contrato? Esta acción no se puede deshacer.');
+        if (!ok) return;
+
+        try {
+            setDeletingId(id);
+            await api.delete(`/contratos/${id}`, {
+                headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+            });
+            const nuevaLista = contratos.filter((c) => c.id !== id);
+            setContratos(nuevaLista); // el useEffect vuelve a filtrar
+        } catch (err) {
+            console.error('Error eliminando contrato:', err);
+            alert(err?.response?.data?.error || 'Error eliminando contrato');
+        } finally {
+            setDeletingId(null);
+        }
+    };
+
+    const handleDownload = async (contrato) => {
+        try {
+            setDownloadingId(contrato.id);
+
+            const url =
+                contrato.ipfs_url ||
+                (contrato.ipfs_hash ? `https://ipfs.io/ipfs/${contrato.ipfs_hash}` : null);
+
+            if (!url) {
+                alert('Este contrato no tiene URL de descarga.');
+                return;
+            }
+
+            // Intento descargar como archivo (blob). Si por CORS falla, abro en nueva pestaña.
+            try {
+                const resp = await fetch(url);
+                if (!resp.ok) throw new Error('Respuesta no OK del gateway');
+                const blob = await resp.blob();
+                const a = document.createElement('a');
+                const nombre = `${(contrato.titulo || 'contrato').replace(/[^\w\s-]/g, '')}.pdf`;
+                a.href = URL.createObjectURL(blob);
+                a.download = nombre;
+                document.body.appendChild(a);
+                a.click();
+                URL.revokeObjectURL(a.href);
+                a.remove();
+            } catch {
+                // Fallback: abrir en nueva pestaña
+                window.open(url, '_blank', 'noopener,noreferrer');
+            }
+        } catch (e) {
+            console.error('Error descargando contrato:', e);
+            alert('No se pudo descargar el contrato.');
+        } finally {
+            setDownloadingId(null);
+        }
+    };
+
 
     const getEstadoBadge = (estado) => {
         const badges = {
-            'borrador': { color: 'secondary', icon: 'bi-pencil' },
-            'pendiente_firmas': { color: 'warning', icon: 'bi-clock' },
-            'firmado': { color: 'success', icon: 'bi-check-circle' },
-            'cancelado': { color: 'danger', icon: 'bi-x-circle' }
+            borrador: { color: 'secondary', icon: 'bi-pencil' },
+            pendiente_firmas: { color: 'warning', icon: 'bi-clock' },
+            firmado: { color: 'success', icon: 'bi-check-circle' },
+            cancelado: { color: 'danger', icon: 'bi-x-circle' }
         };
         return badges[estado] || { color: 'secondary', icon: 'bi-question' };
     };
@@ -116,8 +177,8 @@ const Contracts = () => {
                         <div className="col-md-4">
                             <div className="input-group">
                                 <span className="input-group-text bg-light">
-                                    <i className="bi bi-search"></i>
-                                </span>
+                  <i className="bi bi-search"></i>
+                </span>
                                 <input
                                     type="text"
                                     className="form-control"
@@ -177,8 +238,10 @@ const Contracts = () => {
                     {searchTerm || filterStatus !== 'todos' ? (
                         <button 
                             className="btn btn-outline-primary"
-                            onClick={() => { setSearchTerm(''); setFilterStatus('todos'); }}
-                        >
+                            onClick={() => {
+                                setSearchTerm('');
+                                setFilterStatus('todos');
+                            }}>
                             Limpiar filtros
                         </button>
                     ) : (
@@ -225,11 +288,34 @@ const Contracts = () => {
                                                 <i className="bi bi-eye me-1"></i>
                                                 Ver detalles
                                             </Link>
-                                            <button className="btn btn-sm btn-outline-secondary">
-                                                <i className="bi bi-download"></i>
+                                            <button
+                                                className="btn btn-sm btn-outline-secondary"
+                                                title="Descargar"
+                                                onClick={() => handleDownload(contrato)}
+                                                disabled={downloadingId === contrato.id}
+                                            >
+                                                {downloadingId === contrato.id ? (
+                                                    <span className="spinner-border spinner-border-sm" />
+                                                ) : (
+                                                    <i className="bi bi-download" />
+                                                )}
                                             </button>
-                                            <button className="btn btn-sm btn-outline-danger">
-                                                <i className="bi bi-trash"></i>
+                                            <button
+                                                className="btn btn-sm btn-outline-danger"
+                                                title="Eliminar"
+                                                onClick={() => handleDelete(contrato.id)}
+                                                disabled={deletingId === contrato.id}
+                                            >
+                                                {deletingId === contrato.id ? (
+                                                    <span className="spinner-border spinner-border-sm" />
+                                                ) : (
+                                                    <i className="bi bi-trash" />
+                                                )}
+
+
+
+
+
                                             </button>
                                         </div>
                                     </div>
@@ -244,70 +330,82 @@ const Contracts = () => {
                         <div className="table-responsive">
                             <table className="table table-hover mb-0">
                                 <thead className="bg-light">
-                                    <tr>
-                                        <th className="border-0">ID</th>
-                                        <th className="border-0">Título</th>
-                                        <th className="border-0">Estado</th>
-                                        <th className="border-0">Red</th>
-                                        <th className="border-0">Fecha</th>
-                                        <th className="border-0">Acciones</th>
-                                    </tr>
+                                <tr>
+                                    <th className="border-0">ID</th>
+                                    <th className="border-0">Título</th>
+                                    <th className="border-0">Estado</th>
+                                    <th className="border-0">Red</th>
+                                    <th className="border-0">Fecha</th>
+                                    <th className="border-0">Acciones</th>
+                                </tr>
                                 </thead>
                                 <tbody>
-                                    {currentItems.map(contrato => {
-                                        const badge = getEstadoBadge(contrato.estado);
-                                        return (
-                                            <tr key={contrato.id}>
-                                                <td>#{contrato.id}</td>
-                                                <td>
-                                                    <div>
-                                                        <strong>{contrato.titulo}</strong>
-                                                        <br />
-                                                        <small className="text-muted">
-                                                            {contrato.descripcion?.substring(0, 50)}...
-                                                        </small>
-                                                    </div>
-                                                </td>
-                                                <td>
-                                                    <span className={`badge bg-${badge.color}`}>
-                                                        <i className={`bi ${badge.icon} me-1`}></i>
-                                                        {contrato.estado?.replace('_', ' ')}
-                                                    </span>
-                                                </td>
-                                                <td>
-                                                    <span className="badge bg-info">
-                                                        {contrato.blockchain_network || 'Polygon'}
-                                                    </span>
-                                                </td>
-                                                <td className="text-muted">
-                                                    {formatDate(contrato.fecha_creacion)}
-                                                </td>
-                                                <td>
-                                                    <div className="btn-group" role="group">
-                                                        <Link 
-                                                            to={`/contratos/${contrato.id}`} 
-                                                            className="btn btn-sm btn-outline-primary"
-                                                            title="Ver detalles"
-                                                        >
-                                                            <i className="bi bi-eye"></i>
-                                                        </Link>
-                                                        <button 
-                                                            className="btn btn-sm btn-outline-secondary"
-                                                            title="Descargar"
-                                                        >
-                                                            <i className="bi bi-download"></i>
-                                                        </button>
-                                                        <button 
-                                                            className="btn btn-sm btn-outline-danger"
-                                                            title="Eliminar"
-                                                        >
-                                                            <i className="bi bi-trash"></i>
-                                                        </button>
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                        );
-                                    })}
+                                {currentItems.map((contrato) => {
+                                    const badge = getEstadoBadge(contrato.estado);
+                                    return (
+                                        <tr key={contrato.id}>
+                                            <td>#{contrato.id}</td>
+                                            <td>
+                                                <div>
+                                                    <strong>{contrato.titulo}</strong>
+                                                    <br />
+                                                    <small className="text-muted">
+                                                        {contrato.descripcion?.substring(0, 50)}...
+                                                    </small>
+                                                </div>
+                                            </td>
+                                            <td>
+                          <span className={`badge bg-${badge.color}`}>
+                            <i className={`bi ${badge.icon} me-1`}></i>
+                              {contrato.estado?.replace('_', ' ')}
+                          </span>
+                                            </td>
+                                            <td>
+                          <span className="badge bg-info">
+                            {contrato.blockchain_network || 'Polygon'}
+                          </span>
+                                            </td>
+                                            <td className="text-muted">{formatDate(contrato.fecha_creacion)}</td>
+                                            <td>
+                                                <div className="btn-group" role="group">
+                                                    <Link
+                                                        to={`/contratos/${contrato.id}`}
+                                                        className="btn btn-sm btn-outline-primary"
+                                                        title="Ver detalles"
+                                                    >
+                                                        <i className="bi bi-eye"></i>
+                                                    </Link>
+
+                                                    <button
+                                                        className="btn btn-sm btn-outline-secondary"
+                                                        title="Descargar"
+                                                        onClick={() => handleDownload(contrato)}
+                                                        disabled={downloadingId === contrato.id}
+                                                    >
+                                                        {downloadingId === contrato.id ? (
+                                                            <span className="spinner-border spinner-border-sm" />
+                                                        ) : (
+                                                            <i className="bi bi-download" />
+                                                        )}
+                                                    </button>
+
+                                                    <button
+                                                        className="btn btn-sm btn-outline-danger"
+                                                        title="Eliminar"
+                                                        onClick={() => handleDelete(contrato.id)}
+                                                        disabled={deletingId === contrato.id}
+                                                    >
+                                                        {deletingId === contrato.id ? (
+                                                            <span className="spinner-border spinner-border-sm" />
+                                                        ) : (
+                                                            <i className="bi bi-trash" />
+                                                        )}
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
                                 </tbody>
                             </table>
                         </div>

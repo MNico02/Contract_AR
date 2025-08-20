@@ -133,3 +133,5 @@ CREATE TABLE auditoria_eventos (
 );
 CREATE INDEX idx_auditoria_entidad ON auditoria_eventos(entidad, entidad_id);
 CREATE INDEX idx_auditoria_usuario ON auditoria_eventos(usuario_id);
+
+

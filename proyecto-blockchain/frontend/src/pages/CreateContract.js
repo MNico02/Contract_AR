@@ -7,7 +7,7 @@ const CreateContract = () => {
     const [currentStep, setCurrentStep] = useState(1);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
-    
+
     const [contractData, setContractData] = useState({
         titulo: '',
         descripcion: '',
@@ -21,7 +21,7 @@ const CreateContract = () => {
         { nombre: '', email: '', rol: 'firmante' }
     ]);
 
-    const [archivo, setArchivo] = useState(null);
+    const [archivo, setArchivo] = useState(null); // archivo único
     const [previewMode, setPreviewMode] = useState(false);
 
     const steps = [
@@ -80,7 +80,7 @@ const CreateContract = () => {
             formData.append('contenido', contractData.contenido);
             formData.append('blockchain_network', contractData.blockchain_network);
             formData.append('firmantes', JSON.stringify(firmantes));
-            
+
             if (archivo) {
                 formData.append('archivo', archivo);
             }
@@ -111,6 +111,15 @@ const CreateContract = () => {
         setFirmantes(updated);
     };
 
+    // Estado para manejar la pestaña activa
+    const [activeTab, setActiveTab] = useState("text"); // "text" o "file"
+
+    // Manejar selección de archivo
+    const handleFileChange = (e) => {
+        const file = e.target.files[0];
+        setArchivo(file);
+    };
+
     return (
         <div className="container-fluid p-4">
             {/* Header */}
@@ -136,7 +145,7 @@ const CreateContract = () => {
                                 <div className={`text-center ${currentStep >= step.number ? 'text-primary' : 'text-muted'}`}>
                                     <div className={`rounded-circle mx-auto d-flex align-items-center justify-content-center mb-2 
                                         ${currentStep >= step.number ? 'bg-primary text-white' : 'bg-light'}`}
-                                        style={{ width: '50px', height: '50px' }}>
+                                         style={{ width: '50px', height: '50px' }}>
                                         <i className={`bi ${step.icon} fs-5`}></i>
                                     </div>
                                     <small className="d-none d-md-block">{step.title}</small>
@@ -144,8 +153,8 @@ const CreateContract = () => {
                                 {index < steps.length - 1 && (
                                     <div className="flex-grow-1 mx-3">
                                         <div className="progress" style={{ height: '2px' }}>
-                                            <div className="progress-bar" 
-                                                style={{ width: currentStep > step.number ? '100%' : '0%' }}></div>
+                                            <div className="progress-bar"
+                                                 style={{ width: currentStep > step.number ? '100%' : '0%' }}></div>
                                         </div>
                                     </div>
                                 )}
@@ -183,7 +192,7 @@ const CreateContract = () => {
                                 </div>
                                 <div className="col-md-6 mb-3">
                                     <label className="form-label">Tipo de Contrato</label>
-                                    <select 
+                                    <select
                                         className="form-select"
                                         value={contractData.tipo_contrato}
                                         onChange={(e) => setContractData({...contractData, tipo_contrato: e.target.value})}
@@ -225,34 +234,75 @@ const CreateContract = () => {
                     {currentStep === 2 && (
                         <div>
                             <h4 className="mb-4">Contenido del Contrato</h4>
+
+                            {/* Tabs */}
                             <ul className="nav nav-tabs mb-3">
                                 <li className="nav-item">
-                                    <button className="nav-link active">
+                                    <button
+                                        type="button"
+                                        className={`nav-link ${activeTab === "text" ? "active" : ""}`}
+                                        onClick={() => {
+                                            setActiveTab("text");
+                                            setArchivo(null); // limpiar archivo si cambia a texto
+                                        }}
+                                    >
                                         <i className="bi bi-pencil me-2"></i>
                                         Editor de Texto
                                     </button>
                                 </li>
                                 <li className="nav-item">
-                                    <button className="nav-link">
+                                    <button
+                                        type="button"
+                                        className={`nav-link ${activeTab === "file" ? "active" : ""}`}
+                                        onClick={() => {
+                                            setActiveTab("file");
+                                            setContractData({ ...contractData, contenido: "" }); // limpiar texto si cambia a archivo
+                                        }}
+                                    >
                                         <i className="bi bi-file-earmark-arrow-up me-2"></i>
                                         Subir Archivo
                                     </button>
                                 </li>
                             </ul>
-                            <div className="mb-3">
-                                <label className="form-label">Contenido del Contrato *</label>
-                                <textarea
-                                    className="form-control"
-                                    rows="15"
-                                    value={contractData.contenido}
-                                    onChange={(e) => setContractData({...contractData, contenido: e.target.value})}
-                                    placeholder="Escribe o pega el contenido del contrato aquí..."
-                                    style={{ fontFamily: 'monospace' }}
-                                ></textarea>
-                            </div>
-                            <div className="alert alert-info">
+
+                            {/* Contenido según tab */}
+                            {activeTab === "text" && (
+                                <div className="mb-3">
+                                    <label className="form-label">Contenido del Contrato *</label>
+                                    <textarea
+                                        className="form-control"
+                                        rows="15"
+                                        value={contractData.contenido}
+                                        onChange={(e) =>
+                                            setContractData({ ...contractData, contenido: e.target.value })
+                                        }
+                                        placeholder="Escribe o pega el contenido del contrato aquí..."
+                                        style={{ fontFamily: "monospace" }}
+                                    ></textarea>
+                                </div>
+                            )}
+
+                            {activeTab === "file" && (
+                                <div className="border border-2 border-dashed rounded p-5 text-center bg-light">
+                                    <i className="bi bi-folder2-open display-4 text-primary"></i>
+                                    <p className="mt-3">Arrastra tu archivo aquí o selecciónalo</p>
+                                    <input
+                                        type="file"
+                                        accept=".pdf,.doc,.docx,.txt"
+                                        onChange={handleFileChange}
+                                        className="form-control mt-3"
+                                    />
+                                    {archivo && (
+                                        <div className="mt-3 alert alert-success">
+                                            Archivo seleccionado: <b>{archivo.name}</b>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+
+                            <div className="alert alert-info mt-3">
                                 <i className="bi bi-info-circle me-2"></i>
-                                También puedes subir un archivo PDF, Word o texto plano con el contenido del contrato.
+                                Sólo puedes elegir <b>una opción</b>: escribir el contrato o subir un archivo.
                             </div>
                         </div>
                     )}
@@ -287,7 +337,7 @@ const CreateContract = () => {
                                             </div>
                                             <div className="col-md-3 mb-2">
                                                 <label className="form-label">Rol</label>
-                                                <select 
+                                                <select
                                                     className="form-select"
                                                     value={firmante.rol}
                                                     onChange={(e) => updateFirmante(index, 'rol', e.target.value)}
@@ -299,7 +349,7 @@ const CreateContract = () => {
                                             </div>
                                             <div className="col-md-1 mb-2">
                                                 {firmantes.length > 1 && (
-                                                    <button 
+                                                    <button
                                                         className="btn btn-outline-danger"
                                                         onClick={() => removeFirmante(index)}
                                                     >
@@ -307,10 +357,16 @@ const CreateContract = () => {
                                                     </button>
                                                 )}
                                             </div>
+
                                         </div>
+
                                     </div>
                                 </div>
                             ))}
+                            <div className="alert alert-info mt-3">
+                                <i className="bi bi-info-circle me-2"></i>
+                                Agrege todas las partes involucradas en el contrato para que sean notificadas
+                            </div>
                             <button className="btn btn-outline-primary" onClick={addFirmante}>
                                 <i className="bi bi-plus-circle me-2"></i>
                                 Agregar Firmante
@@ -330,10 +386,10 @@ const CreateContract = () => {
                                         value={contractData.blockchain_network}
                                         onChange={(e) => setContractData({...contractData, blockchain_network: e.target.value})}
                                     >
-                                        <option value="polygon">Polygon (Recomendado)</option>
-                                        <option value="ethereum">Ethereum</option>
+                                        <option value="polygon">Polygon</option>
+                                        {/* <option value="ethereum">Ethereum</option>
                                         <option value="binance">Binance Smart Chain</option>
-                                        <option value="avalanche">Avalanche</option>
+                                        <option value="avalanche">Avalanche</option>*/}
                                     </select>
                                     <small className="text-muted">
                                         La red donde se registrará el hash del contrato
