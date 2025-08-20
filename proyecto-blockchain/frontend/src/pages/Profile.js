@@ -1,14 +1,20 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import api from '../api/api';
 
 const Profile = () => {
-    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    let storedUser = localStorage.getItem('user');
+    let user = {};
+    try {
+        user = storedUser && storedUser !== "undefined" ? JSON.parse(storedUser) : {};
+    } catch (err) {
+        user = {};
+    }
     const [activeTab, setActiveTab] = useState('personal');
     const [loading, setLoading] = useState(false);
     const [success, setSuccess] = useState('');
     const [error, setError] = useState('');
-    
+
+    // Datos personales
     const [personalData, setPersonalData] = useState({
         nombre: user.nombre || '',
         apellido: user.apellido || '',
@@ -16,12 +22,14 @@ const Profile = () => {
         telefono: user.telefono || ''
     });
 
+    // Contraseña
     const [passwordData, setPasswordData] = useState({
         currentPassword: '',
         newPassword: '',
         confirmPassword: ''
     });
 
+    // Preferencias
     const [preferences, setPreferences] = useState({
         emailNotifications: true,
         smsNotifications: false,
@@ -30,51 +38,55 @@ const Profile = () => {
         theme: 'light'
     });
 
+    // Guardar datos personales
     const handlePersonalSubmit = async (e) => {
         e.preventDefault();
         setLoading(true);
         setError('');
         setSuccess('');
-        
+
         try {
-            // API call to update personal data
+            const token = localStorage.getItem('token'); // ya lo tenés del login
+            const response = await api.put('/usuarios/profile', personalData, {
+                headers: {
+                    Authorization: `Bearer ${token}`
+                }
+            });
+
+
             setSuccess('Información personal actualizada exitosamente');
-            
-            // Update local storage
-            const updatedUser = { ...user, ...personalData };
-            localStorage.setItem('user', JSON.stringify(updatedUser));
+
+            // Actualizar localStorage con lo que devuelve la API
+            if (response.data && response.data.usuario) {
+                localStorage.setItem('user', JSON.stringify(response.data.usuario));
+            }
         } catch (err) {
+            console.error(err);
             setError('Error al actualizar la información');
         } finally {
             setLoading(false);
         }
     };
 
+
+    // Cambiar contraseña
     const handlePasswordSubmit = async (e) => {
         e.preventDefault();
-        
         if (passwordData.newPassword !== passwordData.confirmPassword) {
             setError('Las contraseñas no coinciden');
             return;
         }
-        
         if (passwordData.newPassword.length < 8) {
             setError('La contraseña debe tener al menos 8 caracteres');
             return;
         }
-        
-        setLoading(true);
-        setError('');
-        setSuccess('');
-        
+        setLoading(true); setError(''); setSuccess('');
         try {
-            // API call to change password
+            // API call real (ejemplo)
+            // await api.post('/usuarios/change-password', passwordData);
+
             setSuccess('Contraseña actualizada exitosamente');
-            setPasswordData({
-                currentPassword: '',
-                newPassword: '',
-                confirmPassword: ''
-            });
+            setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
         } catch (err) {
             setError('Error al cambiar la contraseña');
         } finally {
@@ -82,14 +94,14 @@ const Profile = () => {
         }
     };
 
+    // Guardar preferencias
     const handlePreferencesSubmit = async (e) => {
         e.preventDefault();
-        setLoading(true);
-        setError('');
-        setSuccess('');
-        
+        setLoading(true); setError(''); setSuccess('');
         try {
-            // API call to update preferences
+            // API call real (ejemplo)
+            // await api.put('/usuarios/preferences', preferences);
+
             setSuccess('Preferencias actualizadas exitosamente');
         } catch (err) {
             setError('Error al actualizar preferencias');
@@ -100,6 +112,7 @@ const Profile = () => {
 
     return (
         <div className="container-fluid p-4">
+            {/* Header */}
             <div className="row mb-4">
                 <div className="col">
                     <h2 className="fw-bold">Mi Perfil</h2>
@@ -108,77 +121,75 @@ const Profile = () => {
             </div>
 
             <div className="row">
+                {/* Sidebar izquierda */}
                 <div className="col-lg-3 mb-4">
-                    {/* Profile Card */}
+                    {/* Card perfil */}
                     <div className="card border-0 shadow-sm mb-4">
                         <div className="card-body text-center">
                             <div className="position-relative d-inline-block mb-3">
-                                <div className="bg-primary rounded-circle d-flex align-items-center justify-content-center mx-auto" 
+                                <div className="bg-primary rounded-circle d-flex align-items-center justify-content-center mx-auto"
                                      style={{ width: '100px', height: '100px' }}>
                                     <i className="bi bi-person-fill text-white" style={{ fontSize: '3rem' }}></i>
                                 </div>
-                                <button className="btn btn-sm btn-primary rounded-circle position-absolute" 
+                                <button className="btn btn-sm btn-primary rounded-circle position-absolute"
                                         style={{ bottom: '0', right: '0' }}>
                                     <i className="bi bi-camera"></i>
                                 </button>
                             </div>
                             <h5 className="mb-1">{user.nombre} {user.apellido}</h5>
                             <p className="text-muted small">{user.email}</p>
-                            <span className="badge bg-primary">{user.rol === 'admin' ? 'Administrador' : 'Usuario'}</span>
+                            <span className="badge bg-primary">
+                                {user.rol === 'admin' ? 'Administrador' : 'Usuario'}
+                            </span>
                         </div>
                     </div>
 
-                    {/* Navigation Pills */}
+                    {/* Menú tabs */}
                     <div className="list-group">
-                        <button 
+                        <button
                             className={`list-group-item list-group-item-action ${activeTab === 'personal' ? 'active' : ''}`}
                             onClick={() => setActiveTab('personal')}
                         >
-                            <i className="bi bi-person me-2"></i>
-                            Información Personal
+                            <i className="bi bi-person me-2"></i> Información Personal
                         </button>
-                        <button 
+                        <button
                             className={`list-group-item list-group-item-action ${activeTab === 'security' ? 'active' : ''}`}
                             onClick={() => setActiveTab('security')}
                         >
-                            <i className="bi bi-shield-lock me-2"></i>
-                            Seguridad
+                            <i className="bi bi-shield-lock me-2"></i> Seguridad
                         </button>
-                        <button 
+                        <button
                             className={`list-group-item list-group-item-action ${activeTab === 'preferences' ? 'active' : ''}`}
                             onClick={() => setActiveTab('preferences')}
                         >
-                            <i className="bi bi-gear me-2"></i>
-                            Preferencias
+                            <i className="bi bi-gear me-2"></i> Preferencias
                         </button>
-                        <button 
+                        <button
                             className={`list-group-item list-group-item-action ${activeTab === 'activity' ? 'active' : ''}`}
                             onClick={() => setActiveTab('activity')}
                         >
-                            <i className="bi bi-clock-history me-2"></i>
-                            Actividad
+                            <i className="bi bi-clock-history me-2"></i> Actividad
                         </button>
                     </div>
                 </div>
 
+                {/* Contenido derecho */}
                 <div className="col-lg-9">
+                    {/* Alertas */}
                     {error && (
                         <div className="alert alert-danger alert-dismissible fade show" role="alert">
-                            <i className="bi bi-exclamation-triangle-fill me-2"></i>
-                            {error}
+                            <i className="bi bi-exclamation-triangle-fill me-2"></i>{error}
                             <button type="button" className="btn-close" onClick={() => setError('')}></button>
                         </div>
                     )}
-                    
                     {success && (
                         <div className="alert alert-success alert-dismissible fade show" role="alert">
-                            <i className="bi bi-check-circle-fill me-2"></i>
-                            {success}
+                            <i className="bi bi-check-circle-fill me-2"></i>{success}
                             <button type="button" className="btn-close" onClick={() => setSuccess('')}></button>
                         </div>
                     )}
 
-                    {/* Personal Information Tab */}
+                    {/* Tabs */}
                     {activeTab === 'personal' && (
                         <div className="card border-0 shadow-sm">
                             <div className="card-header bg-white py-3">
@@ -230,19 +241,13 @@ const Profile = () => {
                                         </div>
                                     </div>
                                     <button type="submit" className="btn btn-primary" disabled={loading}>
-                                        {loading ? (
-                                            <>
-                                                <span className="spinner-border spinner-border-sm me-2"></span>
-                                                Guardando...
-                                            </>
-                                        ) : 'Guardar Cambios'}
+                                        {loading ? <><span className="spinner-border spinner-border-sm me-2"></span>Guardando...</> : 'Guardar Cambios'}
                                     </button>
                                 </form>
                             </div>
                         </div>
                     )}
 
-                    {/* Security Tab */}
                     {activeTab === 'security' && (
                         <div className="card border-0 shadow-sm">
                             <div className="card-header bg-white py-3">
@@ -282,28 +287,13 @@ const Profile = () => {
                                         />
                                     </div>
                                     <button type="submit" className="btn btn-primary" disabled={loading}>
-                                        {loading ? (
-                                            <>
-                                                <span className="spinner-border spinner-border-sm me-2"></span>
-                                                Cambiando...
-                                            </>
-                                        ) : 'Cambiar Contraseña'}
+                                        {loading ? <><span className="spinner-border spinner-border-sm me-2"></span>Cambiando...</> : 'Cambiar Contraseña'}
                                     </button>
                                 </form>
-
-                                <hr className="my-4" />
-
-                                <h6 className="mb-3">Autenticación de dos factores</h6>
-                                <p className="text-muted">Añade una capa extra de seguridad a tu cuenta</p>
-                                <button className="btn btn-outline-primary">
-                                    <i className="bi bi-shield-check me-2"></i>
-                                    Configurar 2FA
-                                </button>
                             </div>
                         </div>
                     )}
 
-                    {/* Preferences Tab */}
                     {activeTab === 'preferences' && (
                         <div className="card border-0 shadow-sm">
                             <div className="card-header bg-white py-3">
@@ -311,6 +301,7 @@ const Profile = () => {
                             </div>
                             <div className="card-body">
                                 <form onSubmit={handlePreferencesSubmit}>
+                                    {/* Notificaciones */}
                                     <h6 className="mb-3">Notificaciones</h6>
                                     <div className="form-check mb-3">
                                         <input
@@ -339,11 +330,12 @@ const Profile = () => {
 
                                     <hr />
 
+                                    {/* Regional */}
                                     <h6 className="mb-3">Configuración Regional</h6>
                                     <div className="row">
                                         <div className="col-md-6 mb-3">
                                             <label className="form-label">Idioma</label>
-                                            <select 
+                                            <select
                                                 className="form-select"
                                                 value={preferences.language}
                                                 onChange={(e) => setPreferences({...preferences, language: e.target.value})}
@@ -355,7 +347,7 @@ const Profile = () => {
                                         </div>
                                         <div className="col-md-6 mb-3">
                                             <label className="form-label">Zona Horaria</label>
-                                            <select 
+                                            <select
                                                 className="form-select"
                                                 value={preferences.timezone}
                                                 onChange={(e) => setPreferences({...preferences, timezone: e.target.value})}
@@ -369,13 +361,11 @@ const Profile = () => {
 
                                     <hr />
 
+                                    {/* Apariencia */}
                                     <h6 className="mb-3">Apariencia</h6>
                                     <div className="btn-group" role="group">
-                                        <input 
-                                            type="radio" 
-                                            className="btn-check" 
-                                            name="theme" 
-                                            id="lightTheme"
+                                        <input
+                                            type="radio" className="btn-check" name="theme" id="lightTheme"
                                             checked={preferences.theme === 'light'}
                                             onChange={() => setPreferences({...preferences, theme: 'light'})}
                                         />
@@ -383,11 +373,8 @@ const Profile = () => {
                                             <i className="bi bi-sun me-2"></i>Claro
                                         </label>
 
-                                        <input 
-                                            type="radio" 
-                                            className="btn-check" 
-                                            name="theme" 
-                                            id="darkTheme"
+                                        <input
+                                            type="radio" className="btn-check" name="theme" id="darkTheme"
                                             checked={preferences.theme === 'dark'}
                                             onChange={() => setPreferences({...preferences, theme: 'dark'})}
                                         />
@@ -395,11 +382,8 @@ const Profile = () => {
                                             <i className="bi bi-moon me-2"></i>Oscuro
                                         </label>
 
-                                        <input 
-                                            type="radio" 
-                                            className="btn-check" 
-                                            name="theme" 
-                                            id="autoTheme"
+                                        <input
+                                            type="radio" className="btn-check" name="theme" id="autoTheme"
                                             checked={preferences.theme === 'auto'}
                                             onChange={() => setPreferences({...preferences, theme: 'auto'})}
                                         />
@@ -410,12 +394,7 @@ const Profile = () => {
 
                                     <div className="mt-4">
                                         <button type="submit" className="btn btn-primary" disabled={loading}>
-                                            {loading ? (
-                                                <>
-                                                    <span className="spinner-border spinner-border-sm me-2"></span>
-                                                    Guardando...
-                                                </>
-                                            ) : 'Guardar Preferencias'}
+                                            {loading ? <><span className="spinner-border spinner-border-sm me-2"></span>Guardando...</> : 'Guardar Preferencias'}
                                         </button>
                                     </div>
                                 </form>
@@ -423,7 +402,6 @@ const Profile = () => {
                         </div>
                     )}
 
-                    {/* Activity Tab */}
                     {activeTab === 'activity' && (
                         <div className="card border-0 shadow-sm">
                             <div className="card-header bg-white py-3">

@@ -1,32 +1,37 @@
 import express from "express";
-import { 
-    getUsers, 
-    getUserById, 
-    createUser, 
+import {
+    getUsers,
+    getUserById,
+    createUser,
     updateUser,
     changePassword,
     getUserActivity,
     getUserStats,
     deleteUser,
-    loginUsuario, 
-    createTestUser  
+    loginUsuario,
+    createTestUser,
+    updateProfile   // 👈 Importar el nuevo controlador
 } from "../controllers/userController.js";
 import { verificarToken, verificarRol } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 
-// Rutas públicas
+/* --------- RUTAS PÚBLICAS --------- */
 router.post("/login", loginUsuario);
 router.post("/register", createUser);
 
-// Ruta temporal para crear usuario de prueba
+// Usuario de prueba (público): habilito POST y GET
+router.post("/create-test", createTestUser);
 router.get("/create-test", createTestUser);
 
-// Rutas protegidas
-router.use(verificarToken); // Aplicar middleware a todas las rutas siguientes
+/* --------- RUTAS PROTEGIDAS --------- */
+router.use(verificarToken);
 
 // Obtener todos los usuarios (solo admin)
 router.get("/", verificarRol(["admin"]), getUsers);
+
+// 🔹 Nueva ruta para que el usuario actual actualice su perfil
+router.put("/profile", updateProfile);
 
 // Rutas de usuario específico
 router.get("/:id", getUserById);

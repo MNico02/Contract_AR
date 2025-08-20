@@ -17,5 +17,6 @@ router.get("/:id", verificarToken, verificarRol(["admin", "usuario"]), contractC
 
 router.post("/", verificarToken, verificarRol(["admin", "usuario"]), upload.single('archivo'), contractController.createContract);
 
+router.delete("/:id", verificarToken, verificarRol(["admin", "usuario"]), contractController.deleteContract);
 
 export default router;
