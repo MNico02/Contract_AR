@@ -41,8 +41,11 @@ export const createTestUser = async (req, res) => {
             }
         });
     } catch (error) {
-        console.error("Error al crear usuario de prueba:", error);
-        return res.status(500).json({ error: "Error al crear usuario de prueba" });
+        console.error("Error al crear usuario de prueba:", error); // ya lo tenés
+        return res.status(500).json({
+            error: "Error al crear usuario de prueba",
+            detalle: error.message   // <-- agregar SOLO en dev
+        });
     }
 };
 

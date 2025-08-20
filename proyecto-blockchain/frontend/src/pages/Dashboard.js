@@ -12,6 +12,7 @@ const Dashboard = () => {
         cancelados: 0
     });
     const [loading, setLoading] = useState(true);
+    const [deletingId, setDeletingId] = useState(null);
     const navigate = useNavigate();
     const user = JSON.parse(localStorage.getItem('user') || '{}');
 
@@ -19,19 +20,20 @@ const Dashboard = () => {
         cargarDatos();
     }, []);
 
+    const recalcStats = (lista) => {
+        setStats({
+            total: lista.length,
+            pendientes: lista.filter(c => c.estado === 'pendiente_firmas').length,
+            firmados: lista.filter(c => c.estado === 'firmado').length,
+            cancelados: lista.filter(c => c.estado === 'cancelado').length
+        });
+    };
+
     const cargarDatos = async () => {
         try {
             const res = await api.get('/contratos');
             setContratos(res.data);
-            
-            // Calcular estadísticas
-            const estadisticas = {
-                total: res.data.length,
-                pendientes: res.data.filter(c => c.estado === 'pendiente_firmas').length,
-                firmados: res.data.filter(c => c.estado === 'firmado').length,
-                cancelados: res.data.filter(c => c.estado === 'cancelado').length
-            };
-            setStats(estadisticas);
+            recalcStats(res.data);
         } catch (error) {
             console.error('Error al cargar contratos:', error);
         } finally {
@@ -43,6 +45,24 @@ const Dashboard = () => {
         localStorage.removeItem('token');
         localStorage.removeItem('user');
         navigate('/login');
+    };
+
+    const handleDelete = async (id) => {
+        const confirmar = window.confirm('¿Eliminar el contrato? Esta acción no se puede deshacer.');
+        if (!confirmar) return;
+
+        try {
+            setDeletingId(id);
+            await api.delete(`/contratos/${id}`); // el token ya lo agrega tu api si tenés interceptor
+            const nuevaLista = contratos.filter(c => c.id !== id);
+            setContratos(nuevaLista);
+            recalcStats(nuevaLista);
+        } catch (err) {
+            console.error('Error eliminando contrato:', err);
+            alert(err?.response?.data?.error || 'Error eliminando contrato');
+        } finally {
+            setDeletingId(null);
+        }
     };
 
     const getEstadoBadge = (estado) => {
@@ -96,7 +116,7 @@ const Dashboard = () => {
                                     {user.nombre} {user.apellido}
                                 </a>
                                 <ul className="dropdown-menu dropdown-menu-end">
-                                   <li><Link to="/perfil" className="dropdown-item"><i className="bi bi-person me-2"></i>Mi Perfil</Link></li>
+                                    <li><Link to="/perfil" className="dropdown-item"><i className="bi bi-person me-2"></i>Mi Perfil</Link></li>
                                     <li><Link to="/configuracion" className="dropdown-item"><i className="bi bi-gear me-2"></i>Configuración</Link></li>
                                     <li><hr className="dropdown-divider" /></li>
                                     <li>
@@ -200,8 +220,6 @@ const Dashboard = () => {
                                         <i className="bi bi-plus-circle me-2"></i>
                                         Nuevo Contrato
                                     </Link>
-
-
                                 </div>
                             </div>
                             <div className="card-body p-0">
@@ -218,61 +236,70 @@ const Dashboard = () => {
                                     <div className="table-responsive">
                                         <table className="table table-hover mb-0">
                                             <thead className="bg-light">
-                                                <tr>
-                                                    <th className="border-0 px-4">Título</th>
-                                                    <th className="border-0">Estado</th>
-                                                    <th className="border-0">Red</th>
-                                                    <th className="border-0">Fecha</th>
-                                                    <th className="border-0">Acciones</th>
-                                                </tr>
+                                            <tr>
+                                                <th className="border-0 px-4">Título</th>
+                                                <th className="border-0">Estado</th>
+                                                <th className="border-0">Red</th>
+                                                <th className="border-0">Fecha</th>
+                                                <th className="border-0">Acciones</th>
+                                            </tr>
                                             </thead>
                                             <tbody>
-                                                {contratos.map(contrato => (
-                                                    <tr key={contrato.id}>
-                                                        <td className="px-4">
-                                                            <div>
-                                                                <h6 className="mb-0">{contrato.titulo}</h6>
-                                                                <small className="text-muted">{contrato.descripcion?.substring(0, 50)}...</small>
-                                                            </div>
-                                                        </td>
-                                                        <td>
-                                                            <span className={`badge ${getEstadoBadge(contrato.estado)}`}>
-                                                                {contrato.estado?.replace('_', ' ').toUpperCase()}
-                                                            </span>
-                                                        </td>
-                                                        <td>
-                                                            <span className="badge bg-info">
-                                                                {contrato.blockchain_network || 'Polygon'}
-                                                            </span>
-                                                        </td>
-                                                        <td className="text-muted">
-                                                            {formatDate(contrato.fecha_creacion)}
-                                                        </td>
-                                                        <td>
-                                                            <div className="btn-group" role="group">
-                                                                <Link 
-                                                                    to={`/contratos/${contrato.id}`} 
-                                                                    className="btn btn-sm btn-outline-primary"
-                                                                    title="Ver detalles"
-                                                                >
-                                                                    <i className="bi bi-eye"></i>
-                                                                </Link>
-                                                                <button 
-                                                                    className="btn btn-sm btn-outline-secondary"
-                                                                    title="Editar"
-                                                                >
-                                                                    <i className="bi bi-pencil"></i>
-                                                                </button>
-                                                                <button 
-                                                                    className="btn btn-sm btn-outline-danger"
-                                                                    title="Eliminar"
-                                                                >
+                                            {contratos.map(contrato => (
+                                                <tr key={contrato.id}>
+                                                    <td className="px-4">
+                                                        <div>
+                                                            <h6 className="mb-0">{contrato.titulo}</h6>
+                                                            <small className="text-muted">{contrato.descripcion?.substring(0, 50)}...</small>
+                                                        </div>
+                                                    </td>
+                                                    <td>
+                              <span className={`badge ${getEstadoBadge(contrato.estado)}`}>
+                                {contrato.estado?.replace('_', ' ').toUpperCase()}
+                              </span>
+                                                    </td>
+                                                    <td>
+                              <span className="badge bg-info">
+                                {contrato.blockchain_network || 'Polygon'}
+                              </span>
+                                                    </td>
+                                                    <td className="text-muted">
+                                                        {formatDate(contrato.fecha_creacion)}
+                                                    </td>
+                                                    <td>
+                                                        <div className="btn-group" role="group">
+                                                            <Link
+                                                                to={`/contratos/${contrato.id}`}
+                                                                className="btn btn-sm btn-outline-primary"
+                                                                title="Ver detalles"
+                                                            >
+                                                                <i className="bi bi-eye"></i>
+                                                            </Link>
+
+                                                            <Link
+                                                                to={`/contratos/${contrato.id}/editar`}
+                                                                className="btn btn-sm btn-outline-secondary"
+                                                                title="Editar"
+                                                            >
+                                                                <i className="bi bi-pencil"></i>
+                                                            </Link>
+
+                                                            <button
+                                                                className="btn btn-sm btn-outline-danger"
+                                                                title="Eliminar"
+                                                                onClick={() => handleDelete(contrato.id)}
+                                                                disabled={deletingId === contrato.id}
+                                                            >
+                                                                {deletingId === contrato.id ? (
+                                                                    <span className="spinner-border spinner-border-sm" aria-hidden="true"></span>
+                                                                ) : (
                                                                     <i className="bi bi-trash"></i>
-                                                                </button>
-                                                            </div>
-                                                        </td>
-                                                    </tr>
-                                                ))}
+                                                                )}
+                                                            </button>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            ))}
                                             </tbody>
                                         </table>
                                     </div>

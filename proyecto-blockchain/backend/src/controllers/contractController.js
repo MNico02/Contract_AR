@@ -36,7 +36,7 @@ export const createContract = async (req, res) => {
         const { titulo, descripcion } = req.body;
         const creador_id = req.usuario.id;
 
-        if (!req.file) {
+       if (!req.file ) {
             return res.status(400).json({ error: "Se requiere un archivo PDF" });
         }
 
@@ -97,5 +97,33 @@ export const uploadContractToIPFS = async (req, res) => {
     } catch (error) {
         console.error("Error al subir contrato a IPFS:", error);
         res.status(500).json({ error: "Error al subir contrato a IPFS" });
+    }
+};
+export const deleteContract = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const contrato = await contractModel.getContractById(id);
+
+        if (!contrato) {
+            return res.status(404).json({ error: "Contrato no encontrado" });
+        }
+
+        // Solo puede eliminar el creador o un admin
+        const esAdmin = req.usuario.rol === "admin";
+        const esCreador = Number(contrato.creador_id) === Number(req.usuario.id);
+
+        if (!esAdmin && !esCreador) {
+            return res.status(403).json({ error: "No autorizado para eliminar este contrato" });
+        }
+
+        const eliminado = await contractModel.deleteContract(id);
+        // eliminado trae { id, titulo } por el RETURNING del modelo
+        return res.json({
+            mensaje: "Contrato eliminado exitosamente",
+            contrato: eliminado,
+        });
+    } catch (error) {
+        console.error("Error al eliminar contrato:", error);
+        return res.status(500).json({ error: "Error al eliminar contrato" });
     }
 };
