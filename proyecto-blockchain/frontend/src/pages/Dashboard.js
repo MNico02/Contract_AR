@@ -161,6 +161,7 @@ const Dashboard = () => {
                                 <ul className="dropdown-menu dropdown-menu-end">
                                     <li><Link to="/perfil" className="dropdown-item"><i className="bi bi-person me-2"></i>Mi Perfil</Link></li>
                                     <li><Link to="/configuracion" className="dropdown-item"><i className="bi bi-gear me-2"></i>Configuración</Link></li>
+
                                     <li><hr className="dropdown-divider" /></li>
                                     <li>
                                         <button className="dropdown-item text-danger" onClick={handleLogout}>
