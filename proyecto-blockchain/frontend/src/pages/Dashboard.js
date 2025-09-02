@@ -16,6 +16,14 @@ const Dashboard = () => {
     const navigate = useNavigate();
     const user = JSON.parse(localStorage.getItem('user') || '{}');
 
+    // ---- Estados para buscar por UUID ----
+    const [uuidInput, setUuidInput] = useState("");
+    const [searchResult, setSearchResult] = useState(null);
+    const [loadingUUID, setLoadingUUID] = useState(false);
+    const [adding, setAdding] = useState(false);
+    const [errorUUID, setErrorUUID] = useState("");
+    const [successUUID, setSuccessUUID] = useState("");
+
     useEffect(() => {
         cargarDatos();
     }, []);
@@ -63,6 +71,40 @@ const Dashboard = () => {
             alert(err?.response?.data?.error || 'Error eliminando contrato');
         } finally {
             setDeletingId(null);
+        }
+    };
+
+    const handleSearchUUID = async () => {
+        if (!uuidInput.trim()) {
+            setErrorUUID("Debes ingresar un UUID");
+            return;
+        }
+        setErrorUUID("");
+        setSuccessUUID("");
+        setLoadingUUID(true);
+        try {
+            const res = await api.get(`/contratos/${uuidInput}`); // Backend: soporta buscar por UUID
+            setSearchResult(res.data);
+        } catch (err) {
+            setSearchResult(null);
+            setErrorUUID("No se encontró ningún contrato con ese UUID");
+        } finally {
+            setLoadingUUID(false);
+        }
+    };
+
+    const handleAddContract = async () => {
+        if (!searchResult) return;
+        setAdding(true);
+        try {
+            await api.post("/contratos/add-by-uuid", { uuid: searchResult.uuid });
+            setSuccessUUID("Contrato agregado correctamente a tu lista");
+            setSearchResult(null);
+            cargarDatos(); // refrescar lista
+        } catch (err) {
+            setErrorUUID("Error al agregar contrato a tu lista");
+        } finally {
+            setAdding(false);
         }
     };
 
@@ -208,6 +250,89 @@ const Dashboard = () => {
                         </div>
                     </div>
                 </div>
+
+                {/* Buscar contrato por UUID */}
+                <div className="row mb-4">
+                    <div className="col-12">
+                        <div className="card border-0 shadow-sm">
+                            <div className="card-header bg-white py-3">
+                                <h5 className="mb-0 fw-bold">Agregar contrato con UUID</h5>
+                            </div>
+                            <div className="card-body">
+                                <div className="input-group mb-3">
+                                    <input
+                                        type="text"
+                                        className="form-control"
+                                        placeholder="Ingresa el UUID del contrato"
+                                        value={uuidInput}
+                                        onChange={(e) => setUuidInput(e.target.value)}
+                                    />
+                                    <button
+                                        className="btn btn-primary"
+                                        onClick={handleSearchUUID}
+                                        disabled={loadingUUID}
+                                    >
+                                        {loadingUUID ? (
+                                            <>
+                                                <span className="spinner-border spinner-border-sm me-2"></span>
+                                                Buscando...
+                                            </>
+                                        ) : (
+                                            <>
+                                                <i className="bi bi-search me-2"></i>
+                                                Buscar
+                                            </>
+                                        )}
+                                    </button>
+                                </div>
+
+                                {/* Resultado */}
+                                {searchResult && (
+                                    <div className="alert alert-info">
+                                        <h6 className="fw-bold mb-1">{searchResult.titulo}</h6>
+                                        <p className="mb-1 text-muted">{searchResult.descripcion}</p>
+                                        <small className="d-block mb-2">
+                                            <b>UUID:</b> {searchResult.uuid}
+                                        </small>
+                                        <button
+                                            className="btn btn-success btn-sm"
+                                            onClick={handleAddContract}
+                                            disabled={adding}
+                                        >
+                                            {adding ? (
+                                                <>
+                                                    <span className="spinner-border spinner-border-sm me-2"></span>
+                                                    Agregando...
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <i className="bi bi-plus-circle me-2"></i>
+                                                    Agregar a mis contratos
+                                                </>
+                                            )}
+                                        </button>
+                                    </div>
+                                )}
+
+                                {errorUUID && (
+                                    <div className="alert alert-danger">
+                                        <i className="bi bi-exclamation-triangle me-2"></i>
+                                        {errorUUID}
+                                    </div>
+                                )}
+
+                                {successUUID && (
+                                    <div className="alert alert-success">
+                                        <i className="bi bi-check-circle me-2"></i>
+                                        {successUUID}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+
 
                 {/* Contracts Section */}
                 <div className="row">

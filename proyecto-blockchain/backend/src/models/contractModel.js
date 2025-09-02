@@ -1,82 +1,6 @@
 import pool from "../config/db.js";
 
-// Obtener todos los contratos con filtros
-export const getAllContracts = async (filters = {}) => {
-    let query = `
-        SELECT
-            c.id,
-            c.uuid,
-            c.titulo,
-            c.descripcion,
-            c.ipfs_hash,
-            c.ipfs_url,
-            c.blockchain_hash,
-            c.transaction_hash,
-            ec.nombre AS estado,
-            c.estado_id,
-            rb.nombre AS blockchain_network,
-            c.fecha_creacion,
-            c.fecha_firmado,
-            u.nombre || ' ' || u.apellido AS creador,
-            c.creador_id
-        FROM contratos c
-        JOIN estados_contrato ec ON c.estado_id = ec.id
-        LEFT JOIN usuarios u ON c.creador_id = u.id
-        LEFT JOIN redes_blockchain rb ON c.blockchain_network_id = rb.id
-        WHERE 1=1
-    `;
 
-    const values = [];
-    let paramCount = 1;
-
-    // Aplicar filtros
-    if (filters.creador_id) {
-        query += ` AND c.creador_id = $${paramCount}`;
-        values.push(filters.creador_id);
-        paramCount++;
-    }
-
-    if (filters.estado) {
-        query += ` AND ec.nombre = $${paramCount}`;
-        values.push(filters.estado);
-        paramCount++;
-    }
-
-    if (filters.search) {
-        query += ` AND (c.titulo ILIKE $${paramCount} OR c.descripcion ILIKE $${paramCount})`;
-        values.push(`%${filters.search}%`);
-        paramCount++;
-    }
-
-    if (filters.fecha_desde) {
-        query += ` AND c.fecha_creacion >= $${paramCount}`;
-        values.push(filters.fecha_desde);
-        paramCount++;
-    }
-
-    if (filters.fecha_hasta) {
-        query += ` AND c.fecha_creacion <= $${paramCount}`;
-        values.push(filters.fecha_hasta);
-        paramCount++;
-    }
-
-    query += ` ORDER BY c.fecha_creacion DESC`;
-
-    // Paginación
-    if (filters.limit) {
-        query += ` LIMIT $${paramCount}`;
-        values.push(filters.limit);
-        paramCount++;
-    }
-
-    if (filters.offset) {
-        query += ` OFFSET $${paramCount}`;
-        values.push(filters.offset);
-    }
-
-    const result = await pool.query(query, values);
-    return result.rows;
-};
 
 // Obtener contrato por ID con detalles completos
 export const getContractById = async (id) => {
@@ -249,6 +173,40 @@ export const getContractsBySignerEmail = async (email) => {
     `, [email]);
     return result.rows;
 };
+// Buscar contrato por UUID
+export const getContractByUUID = async (uuid) => {
+    const result = await pool.query(
+        `SELECT * FROM contratos WHERE uuid = $1`,
+        [uuid]
+    );
+    return result.rows[0];
+};
+
+// Relacionar usuario con contrato
+export const linkUserToContract = async (usuario_id, contrato_id) => {
+    const result = await pool.query(
+        `INSERT INTO usuarios_contratos (usuario_id, contrato_id)
+         VALUES ($1, $2)
+             ON CONFLICT (usuario_id, contrato_id) DO NOTHING
+         RETURNING *`,
+        [usuario_id, contrato_id]
+    );
+    return result.rows[0];
+};
+
+// Obtener contratos del usuario (creados + compartidos)
+export const getContractsForUser = async (usuario_id) => {
+    const result = await pool.query(`
+        SELECT DISTINCT c.*
+        FROM contratos c
+                 LEFT JOIN usuarios_contratos uc ON uc.contrato_id = c.id
+        WHERE c.creador_id = $1 OR uc.usuario_id = $1
+        ORDER BY c.fecha_creacion DESC
+    `, [usuario_id]);
+    return result.rows;
+};
+
+
 
 // Verificar si un usuario puede acceder a un contrato
 export const canUserAccessContract = async (contractId, userId) => {
