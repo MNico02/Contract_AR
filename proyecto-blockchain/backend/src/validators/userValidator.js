@@ -27,10 +27,12 @@ export const validateUserCreate = (data) => {
         nombre: Joi.string().min(2).max(100).required(),
         apellido: Joi.string().min(2).max(100).required(),
         email: Joi.string().email().required(),
-        password: Joi.string().min(8).required(),
+        password: Joi.string().min(8).required()
+            .pattern(new RegExp('^(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9])'))
+            .message('La contraseña debe contener al menos una mayúscula, una minúscula y un número'),
         telefono: Joi.string().allow('').max(20),
-        rol_id: Joi.number().integer().min(1).max(2)
+        rol_id: Joi.number().integer().min(1).max(2) // 1=admin, 2=usuario
     });
-    
+
     return schema.validate(data);
 };
