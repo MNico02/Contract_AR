@@ -1,29 +1,78 @@
 import * as contractModel from "../models/contractModel.js";
 import { uploadFileToIPFS } from "../services/ipfsService.js";
-
+import { sendMail } from "../utils/mailer.js";
 // Obtener todos los contratos
+// Obtener todos los contratos del usuario autenticado
 export const getContracts = async (req, res) => {
     try {
-        const contracts = await contractModel.getAllContracts();
+        const usuario_id = req.usuario.id;
+        console.log("👉 getContracts - usuario_id:", usuario_id);
+
+        // Traer solo contratos del usuario
+        const contracts = await contractModel.getContractsForUser(usuario_id);
+
         res.json(contracts);
     } catch (error) {
-        console.error("Error al obtener contratos:", error);
+        console.error("❌ Error al obtener contratos:", error);
         res.status(500).json({ error: "Error al obtener contratos" });
     }
 };
 
+
 // Obtener contrato por ID
+// Obtener contrato por ID o UUID
 export const getContractById = async (req, res) => {
     try {
         const { id } = req.params;
-        const contract = await contractModel.getContractById(id);
+        let contract;
+
+        // Verificamos si es un número
+        if (/^\d+$/.test(id)) {
+            contract = await contractModel.getContractById(Number(id));
+        }
+        // Verificamos si es un UUID válido
+        else if (/^[0-9a-fA-F-]{36}$/.test(id)) {
+            contract = await contractModel.getContractByUUID(id);
+        }
+        else {
+            return res.status(400).json({ error: "Identificador inválido" });
+        }
+
         if (!contract) {
             return res.status(404).json({ error: "Contrato no encontrado" });
         }
+
         res.json(contract);
     } catch (error) {
         console.error("Error al obtener contrato:", error);
         res.status(500).json({ error: "Error al obtener contrato" });
+    }
+};
+
+
+// Agregar contrato a la lista de un usuario usando UUID
+export const addContractByUUID = async (req, res) => {
+    try {
+        const { uuid } = req.body;
+        const usuario_id = req.usuario.id;
+
+        if (!uuid) {
+            return res.status(400).json({ error: "UUID requerido" });
+        }
+
+        // Buscar contrato
+        const contrato = await contractModel.getContractByUUID(uuid);
+        if (!contrato) {
+            return res.status(404).json({ error: "Contrato no encontrado" });
+        }
+
+        // Asociar usuario al contrato
+        await contractModel.linkUserToContract(usuario_id, contrato.id);
+
+        return res.json({ mensaje: "Contrato agregado a tu lista", contrato });
+    } catch (error) {
+        console.error("❌ Error en addContractByUUID:", error);
+        res.status(500).json({ error: "Error al agregar contrato" });
     }
 };
 
@@ -47,6 +96,7 @@ export const createContract = async (req, res) => {
         const { cid, url } = await uploadFileToIPFS(fileBuffer, fileName);
         console.log("IPFS:", cid, url);
 
+        //guadar contrato en DB
         const nuevoContrato = await contractModel.createContract({
             titulo,
             descripcion,
@@ -55,10 +105,40 @@ export const createContract = async (req, res) => {
             creador_id
         });
 
+        let firmantesArray = [];
+        try {
+            if (req.body.firmantes) {
+                firmantesArray = JSON.parse(req.body.firmantes); // viene como string desde el front
+            }
+        } catch (e) {
+            console.error("Error parseando firmantes:", e);
+        }
+
+        for (const f of firmantesArray) {
+            if (f.email) {
+                await sendMail(
+                    f.email,
+                    `Nuevo contrato creado: ${nuevoContrato.titulo}`,
+                    `
+                    <p>Hola <b>${f.nombre || "firmante"}</b>,</p>
+                    <p>Se te ha asignado un nuevo contrato en el sistema <b>Blockchain Contracts</b>.</p>
+                    <ul>
+                        <li><b>UUID:</b> ${nuevoContrato.uuid}</li>
+                        <li><b>Título:</b> ${nuevoContrato.titulo}</li>
+                        <li><b>Descripción:</b> ${nuevoContrato.descripcion}</li>
+                        <li><b>URL IPFS:</b> <a href="${nuevoContrato.ipfs_url}" target="_blank">${nuevoContrato.ipfs_url}</a></li>
+                        <li><b>Fecha de creación:</b> ${nuevoContrato.fecha_creacion}</li>
+                    </ul>
+                    <p>Por favor, accedé al sistema para ver más detalles.</p>
+                    `
+                );
+            }
+        }
+
         console.log("Contrato guardado en DB:", nuevoContrato);
 
         res.status(201).json({
-            mensaje: "Contrato creado y subido a IPFS correctamente",
+            mensaje: "Contrato creado, subido a IPFS correctamente y notificado a los firmantes",
             contrato: nuevoContrato
         });
 
