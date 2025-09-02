@@ -10,7 +10,10 @@ import {
     deleteUser,
     loginUsuario,
     createTestUser,
-    updateProfile   // 👈 Importar el nuevo controlador
+    updateProfile,
+    forgotPassword,
+    resetPassword,
+    verifyResetCode
 } from "../controllers/userController.js";
 import { verificarToken, verificarRol } from "../middleware/authMiddleware.js";
 
@@ -24,6 +27,11 @@ router.post("/register", createUser);
 router.post("/create-test", createTestUser);
 router.get("/create-test", createTestUser);
 
+// Recuperación de contraseña
+router.post("/forgot-password", forgotPassword);
+router.post("/verify-reset-code", verifyResetCode);
+router.post("/reset-password", resetPassword);
+
 /* --------- RUTAS PROTEGIDAS --------- */
 router.use(verificarToken);
 
@@ -33,14 +41,14 @@ router.get("/", verificarRol(["admin"]), getUsers);
 // 🔹 Nueva ruta para que el usuario actual actualice su perfil
 router.put("/profile", updateProfile);
 
-// Rutas de usuario específico
-router.get("/:id", getUserById);
-router.put("/:id", updateUser);
-router.delete("/:id", verificarRol(["admin"]), deleteUser);
-
-// Rutas adicionales
+// ⚡ Primero las rutas específicas
 router.put("/:id/password", changePassword);
 router.get("/:id/activity", getUserActivity);
 router.get("/:id/stats", getUserStats);
+
+// Después las rutas genéricas con solo :id
+router.get("/:id", getUserById);
+router.put("/:id", updateUser);
+router.delete("/:id", verificarRol(["admin"]), deleteUser);
 
 export default router;

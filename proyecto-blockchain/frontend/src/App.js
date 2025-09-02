@@ -8,6 +8,7 @@ import ContratoDetalle from "./pages/ContratoDetalle";
 import CreateContract from "./pages/CreateContract";
 import Profile from "./pages/Profile";
 import VerifyContract from "./pages/VerifyContract";
+import ForgotPassword from "./pages/ForgotPassword"; // <- importamos el nuevo componente
 import ProtectedRoute from "./components/ProtectedRoute";
 import MainLayout from "./components/layout/MainLayout";
 import 'bootstrap/dist/css/bootstrap.min.css';
@@ -22,7 +23,8 @@ const App = () => {
                 <Route path="/login" element={<Login />} />
                 <Route path="/registro" element={<Register />} />
                 <Route path="/verify" element={<VerifyContract />} />
-                
+                <Route path="/forgot-password" element={<ForgotPassword />} /> {/* <- Nueva ruta */}
+
                 {/* Protected Routes with Layout */}
                 <Route element={
                     <ProtectedRoute>
@@ -34,7 +36,7 @@ const App = () => {
                     <Route path="/contratos/nuevo" element={<CreateContract />} />
                     <Route path="/contratos/:id" element={<ContratoDetalle />} />
                     <Route path="/perfil" element={<Profile />} />
-                    
+
                     {/* Placeholder routes for additional pages */}
                     <Route path="/firmantes" element={
                         <div className="container-fluid p-4">

@@ -35,6 +35,18 @@ export const getUserByEmail = async (email) => {
     `, [email]);
     return result.rows[0];
 };
+//para recuperar contraseña
+export const getUserByIdWithPassword = async (id) => {
+    const result = await pool.query(`
+        SELECT u.id, u.uuid, u.email, u.password_hash, u.nombre, u.apellido, u.telefono,
+               r.nombre AS rol, u.estado, u.fecha_creacion, u.ultima_conexion
+        FROM usuarios u
+        JOIN roles r ON u.rol_id = r.id
+        WHERE u.id = $1
+    `, [id]);
+    return result.rows[0];
+};
+
 
 
 // Crear usuario
@@ -150,5 +162,42 @@ export const getUserStats = async (userId) => {
                           JOIN contratos c ON t.contrato_id = c.id
                  WHERE c.creador_id = $1) AS transacciones_totales
     `, [userId]);
+    return result.rows[0];
+};
+
+
+
+// Crear un registro de reseteo de contraseña
+export const createPasswordReset = async (usuario_id, codigo, expiracion) => {
+    const result = await pool.query(`
+        INSERT INTO password_resets (usuario_id, codigo, expiracion)
+        VALUES ($1, $2, $3)
+        RETURNING id, usuario_id, codigo, expiracion
+    `, [usuario_id, codigo, expiracion]);
+    return result.rows[0];
+};
+
+// Buscar un código válido (no usado y no vencido)
+export const findValidReset = async (usuario_id, codigo) => {
+    const result = await pool.query(`
+        SELECT * FROM password_resets
+        WHERE usuario_id = $1
+          AND codigo = $2
+          AND usado = false
+          AND expiracion > NOW()
+        ORDER BY fecha_creacion DESC
+        LIMIT 1
+    `, [usuario_id, codigo]);
+    return result.rows[0];
+};
+
+// Marcar un código como usado
+export const markResetUsed = async (id) => {
+    const result = await pool.query(`
+        UPDATE password_resets
+        SET usado = true
+        WHERE id = $1
+        RETURNING id, usado
+    `, [id]);
     return result.rows[0];
 };

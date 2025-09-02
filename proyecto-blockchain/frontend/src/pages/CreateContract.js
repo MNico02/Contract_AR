@@ -8,6 +8,14 @@ const CreateContract = () => {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
 
+
+   const [successMsg, setSuccessMsg] = useState('');
+    const [showSuccess, setShowSuccess] = useState(false);
+// Modal de éxito
+    const [showModal, setShowModal] = useState(false);
+
+
+
     const [contractData, setContractData] = useState({
         titulo: '',
         descripcion: '',
@@ -89,13 +97,16 @@ const CreateContract = () => {
                 headers: { 'Content-Type': 'multipart/form-data' }
             });
 
-            navigate(`/contratos/${response.data.id}`);
+            setError('');
+            setSuccessMsg("Contrato creado exitosamente");
+            setShowModal(true);   // <<--- abrimos modal
         } catch (err) {
             setError('Error al crear el contrato. Por favor intenta nuevamente.');
         } finally {
             setLoading(false);
         }
     };
+
 
     const addFirmante = () => {
         setFirmantes([...firmantes, { nombre: '', email: '', rol: 'firmante' }]);
@@ -135,7 +146,39 @@ const CreateContract = () => {
                     </nav>
                 </div>
             </div>
+            {/* Modal de éxito */}
+            {showModal && (
+                <div className="modal fade show d-block" tabIndex="-1" style={{ backgroundColor: "rgba(0,0,0,0.5)" }}>
+                    <div className="modal-dialog modal-dialog-centered">
+                        <div className="modal-content">
+                            <div className="modal-header">
+                                <h5 className="modal-title">Éxito</h5>
+                                <button type="button" className="btn-close" onClick={() => setShowModal(false)}></button>
+                            </div>
+                            <div className="modal-body">
+                                <p><i className="bi bi-check-circle-fill text-success me-2"></i>{successMsg}</p>
+                            </div>
+                            <div className="modal-footer">
+                                <button className="btn btn-secondary" onClick={() => setShowModal(false)}>
+                                    Cerrar
+                                </button>
+                                <button className="btn btn-primary" onClick={() => navigate("/contratos")}>
+                                    Ver contratos
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
 
+
+            {error && (
+                <div className="alert alert-danger alert-dismissible fade show mb-4" role="alert">
+                    <i className="bi bi-exclamation-triangle-fill me-2"></i>
+                    {error}
+                    <button type="button" className="btn-close" onClick={() => setError('')}></button>
+                </div>
+            )}
             {/* Progress Steps */}
             <div className="card border-0 shadow-sm mb-4">
                 <div className="card-body">
@@ -237,19 +280,7 @@ const CreateContract = () => {
 
                             {/* Tabs */}
                             <ul className="nav nav-tabs mb-3">
-                                <li className="nav-item">
-                                    <button
-                                        type="button"
-                                        className={`nav-link ${activeTab === "text" ? "active" : ""}`}
-                                        onClick={() => {
-                                            setActiveTab("text");
-                                            setArchivo(null); // limpiar archivo si cambia a texto
-                                        }}
-                                    >
-                                        <i className="bi bi-pencil me-2"></i>
-                                        Editor de Texto
-                                    </button>
-                                </li>
+
                                 <li className="nav-item">
                                     <button
                                         type="button"
@@ -265,44 +296,26 @@ const CreateContract = () => {
                                 </li>
                             </ul>
 
-                            {/* Contenido según tab */}
-                            {activeTab === "text" && (
-                                <div className="mb-3">
-                                    <label className="form-label">Contenido del Contrato *</label>
-                                    <textarea
-                                        className="form-control"
-                                        rows="15"
-                                        value={contractData.contenido}
-                                        onChange={(e) =>
-                                            setContractData({ ...contractData, contenido: e.target.value })
-                                        }
-                                        placeholder="Escribe o pega el contenido del contrato aquí..."
-                                        style={{ fontFamily: "monospace" }}
-                                    ></textarea>
-                                </div>
-                            )}
-
-                            {activeTab === "file" && (
-                                <div className="border border-2 border-dashed rounded p-5 text-center bg-light">
-                                    <i className="bi bi-folder2-open display-4 text-primary"></i>
-                                    <p className="mt-3">Arrastra tu archivo aquí o selecciónalo</p>
-                                    <input
-                                        type="file"
-                                        accept=".pdf,.doc,.docx,.txt"
-                                        onChange={handleFileChange}
-                                        className="form-control mt-3"
-                                    />
-                                    {archivo && (
-                                        <div className="mt-3 alert alert-success">
-                                            Archivo seleccionado: <b>{archivo.name}</b>
-                                        </div>
-                                    )}
-                                </div>
-                            )}
+                            {/* Solo opción de archivo */}
+                            <div className="border border-2 border-dashed rounded p-5 text-center bg-light">
+                                <i className="bi bi-folder2-open display-4 text-primary"></i>
+                                <p className="mt-3">Selecciona el archivo del contrato (solo PDF, DOC, DOCX, TXT)</p>
+                                <input
+                                    type="file"
+                                    accept=".pdf,.doc,.docx,.txt"
+                                    onChange={handleFileChange}
+                                    className="form-control mt-3"
+                                />
+                                {archivo && (
+                                    <div className="mt-3 alert alert-success">
+                                        Archivo seleccionado: <b>{archivo.name}</b>
+                                    </div>
+                                )}
+                            </div>
 
                             <div className="alert alert-info mt-3">
                                 <i className="bi bi-info-circle me-2"></i>
-                                Sólo puedes elegir <b>una opción</b>: escribir el contrato o subir un archivo.
+                                El contrato debe ser cargado como archivo. No se permite ingresar texto manualmente.
                             </div>
                         </div>
                     )}
@@ -467,16 +480,7 @@ const CreateContract = () => {
                                 </div>
                             </div>
 
-                            <div className="card">
-                                <div className="card-header bg-light">
-                                    <h6 className="mb-0">Vista Previa del Contenido</h6>
-                                </div>
-                                <div className="card-body">
-                                    <pre style={{ maxHeight: '200px', overflow: 'auto' }}>
-                                        {contractData.contenido?.substring(0, 500)}...
-                                    </pre>
-                                </div>
-                            </div>
+                            
                         </div>
                     )}
 
