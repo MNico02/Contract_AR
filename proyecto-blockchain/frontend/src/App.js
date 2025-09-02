@@ -13,12 +13,14 @@ import ProtectedRoute from "./components/ProtectedRoute";
 import MainLayout from "./components/layout/MainLayout";
 import 'bootstrap/dist/css/bootstrap.min.css';
 import 'bootstrap/dist/js/bootstrap.bundle.min.js';
+import AdminPage from "./pages/AdminPage";
 
 const App = () => {
     return (
         <BrowserRouter>
             <Routes>
                 {/* Public Routes */}
+
                 <Route path="/" element={<Navigate to="/login" replace />} />
                 <Route path="/login" element={<Login />} />
                 <Route path="/registro" element={<Register />} />
@@ -36,7 +38,9 @@ const App = () => {
                     <Route path="/contratos/nuevo" element={<CreateContract />} />
                     <Route path="/contratos/:id" element={<ContratoDetalle />} />
                     <Route path="/perfil" element={<Profile />} />
-
+                    {/*adminLTE*/}
+                    <Route path="/dashboard" element={<Dashboard />} />
+                    <Route path="/admin" element={<AdminPage />} />
                     {/* Placeholder routes for additional pages */}
                     <Route path="/firmantes" element={
                         <div className="container-fluid p-4">

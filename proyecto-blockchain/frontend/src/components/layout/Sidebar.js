@@ -38,6 +38,16 @@ const Sidebar = () => {
             path: '/perfil',
             badge: null
         },
+// 👇 Solo admins ven este menú
+        ...(user.rol === 'admin'
+                ? [{
+                    title: 'Panel Admin',
+                    icon: 'bi-speedometer2',
+                    path: '/admin',
+                    badge: null
+                }]
+                : []
+        ),
         {
             title: 'Configuración',
             icon: 'bi-gear',
