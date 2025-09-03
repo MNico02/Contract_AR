@@ -221,3 +221,24 @@ export const canUserAccessContract = async (contractId, userId) => {
     `, [contractId, userId]);
     return result.rows[0].can_access;
 };
+// Contar cuántos usuarios están vinculados a un contrato
+export const countUsersLinkedToContract = async (contrato_id) => {
+    const result = await pool.query(
+        `SELECT COUNT(*)::int AS total
+         FROM usuarios_contratos
+         WHERE contrato_id = $1`,
+        [contrato_id]
+    );
+    return result.rows[0].total;
+};
+
+// Eliminar relación usuario-contrato (sin borrar el contrato en sí)
+export const unlinkUserFromContract = async (usuario_id, contrato_id) => {
+    const result = await pool.query(
+        `DELETE FROM usuarios_contratos
+         WHERE usuario_id = $1 AND contrato_id = $2
+         RETURNING *`,
+        [usuario_id, contrato_id]
+    );
+    return result.rows[0];
+};
