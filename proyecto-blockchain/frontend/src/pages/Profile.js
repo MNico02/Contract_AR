@@ -62,13 +62,20 @@ const Profile = () => {
             setError('La contraseña debe tener al menos 8 caracteres');
             return;
         }
-        
+
         setLoading(true);
         setError('');
         setSuccess('');
         
         try {
-            // API call to change password
+            // API call real (ejemplo)
+            // await api.post('/usuarios/change-password', passwordData);
+            const user = JSON.parse(localStorage.getItem('user')); // obtener id del usuario logueado
+
+            await api.put(`/usuarios/${user.id}/password`, {
+                currentPassword: passwordData.currentPassword,
+                newPassword: passwordData.newPassword
+            });
             setSuccess('Contraseña actualizada exitosamente');
             setPasswordData({
                 currentPassword: '',
@@ -76,7 +83,11 @@ const Profile = () => {
                 confirmPassword: ''
             });
         } catch (err) {
-            setError('Error al cambiar la contraseña');
+            if (err.response?.status === 401) {
+                setError('Contraseña actual incorrecta');
+            } else {
+                setError('Error al cambiar la contraseña');
+            }
         } finally {
             setLoading(false);
         }
@@ -256,7 +267,9 @@ const Profile = () => {
                                             type="password"
                                             className="form-control"
                                             value={passwordData.currentPassword}
-                                            onChange={(e) => setPasswordData({...passwordData, currentPassword: e.target.value})}
+                                            onChange={(e) =>
+                                                setPasswordData({ ...passwordData, currentPassword: e.target.value })
+                                            }
                                             required
                                         />
                                     </div>
@@ -266,10 +279,20 @@ const Profile = () => {
                                             type="password"
                                             className="form-control"
                                             value={passwordData.newPassword}
-                                            onChange={(e) => setPasswordData({...passwordData, newPassword: e.target.value})}
+                                            onChange={(e) =>
+                                                setPasswordData({ ...passwordData, newPassword: e.target.value })
+                                            }
                                             required
                                         />
-                                        <small className="text-muted">Mínimo 8 caracteres</small>
+                                        <small className="text-muted d-block mt-1">
+                                            La contraseña debe tener:
+                                            <ul className="mb-0">
+                                                <li>Mínimo 8 caracteres</li>
+                                                <li>Al menos una letra mayúscula (A-Z)</li>
+                                                <li>Al menos una letra minúscula (a-z)</li>
+                                                <li>Al menos un número (0-9)</li>
+                                            </ul>
+                                        </small>
                                     </div>
                                     <div className="mb-3">
                                         <label className="form-label">Confirmar Nueva Contraseña</label>
@@ -277,7 +300,9 @@ const Profile = () => {
                                             type="password"
                                             className="form-control"
                                             value={passwordData.confirmPassword}
-                                            onChange={(e) => setPasswordData({...passwordData, confirmPassword: e.target.value})}
+                                            onChange={(e) =>
+                                                setPasswordData({ ...passwordData, confirmPassword: e.target.value })
+                                            }
                                             required
                                         />
                                     </div>
@@ -287,7 +312,9 @@ const Profile = () => {
                                                 <span className="spinner-border spinner-border-sm me-2"></span>
                                                 Cambiando...
                                             </>
-                                        ) : 'Cambiar Contraseña'}
+                                        ) : (
+                                            "Cambiar Contraseña"
+                                        )}
                                     </button>
                                 </form>
 
