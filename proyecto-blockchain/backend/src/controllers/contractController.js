@@ -104,7 +104,7 @@ export const createContract = async (req, res) => {
             ipfs_url: url,
             creador_id
         });
-
+        await contractModel.linkUserToContract(creador_id, nuevoContrato.id);
         let firmantesArray = [];
         try {
             if (req.body.firmantes) {
@@ -188,22 +188,33 @@ export const deleteContract = async (req, res) => {
             return res.status(404).json({ error: "Contrato no encontrado" });
         }
 
-        // Solo puede eliminar el creador o un admin
+        const usuario_id = req.usuario.id;
         const esAdmin = req.usuario.rol === "admin";
-        const esCreador = Number(contrato.creador_id) === Number(req.usuario.id);
+        const esCreador = Number(contrato.creador_id) === Number(usuario_id);
 
+        // Si no es admin ni creador, no puede
         if (!esAdmin && !esCreador) {
             return res.status(403).json({ error: "No autorizado para eliminar este contrato" });
         }
 
-        const eliminado = await contractModel.deleteContract(id);
-        // eliminado trae { id, titulo } por el RETURNING del modelo
-        return res.json({
-            mensaje: "Contrato eliminado exitosamente",
-            contrato: eliminado,
-        });
+        // 🔑 Chequear cuántos vínculos hay
+        const vinculados = await contractModel.countUsersLinkedToContract(contrato.id);
+
+        if (vinculados > 1) {
+            // Si hay más de un usuario vinculado → solo se elimina el vínculo del que borra
+            await contractModel.unlinkUserFromContract(usuario_id, contrato.id);
+            return res.json({ mensaje: "Contrato eliminado solo de tu lista" });
+        } else {
+            // Si es el único vinculado → eliminar contrato completo
+            const eliminado = await contractModel.deleteContract(id);
+            return res.json({
+                mensaje: "Contrato eliminado definitivamente",
+                contrato: eliminado,
+            });
+        }
     } catch (error) {
         console.error("Error al eliminar contrato:", error);
         return res.status(500).json({ error: "Error al eliminar contrato" });
     }
 };
+
