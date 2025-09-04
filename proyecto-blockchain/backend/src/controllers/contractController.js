@@ -1,6 +1,23 @@
+// controllers/contractController.js
 import * as contractModel from "../models/contractModel.js";
+import * as signerModel from "../models/signerModel.js"; // 👈 NUEVO
 import { uploadFileToIPFS } from "../services/ipfsService.js";
 import { sendMail } from "../utils/mailer.js";
+
+// Helper: parsea firmantes que pueden venir como string (FormData) o como array
+function parseFirmantes(raw) {
+    if (!raw) return [];
+    if (Array.isArray(raw)) return raw;
+    if (typeof raw === "string") {
+        try {
+            const arr = JSON.parse(raw);
+            return Array.isArray(arr) ? arr : [];
+        } catch {
+            return [];
+        }
+    }
+    return [];
+}
 
 // Obtener todos los contratos del usuario autenticado
 export const getContracts = async (req, res) => {
@@ -8,7 +25,6 @@ export const getContracts = async (req, res) => {
         const usuario_id = req.usuario.id;
         console.log("👉 getContracts - usuario_id:", usuario_id);
 
-        // Traer solo contratos del usuario
         const contracts = await contractModel.getContractsForUser(usuario_id);
         res.json(contracts);
     } catch (error) {
@@ -23,17 +39,14 @@ export const getContractById = async (req, res) => {
         const { id } = req.params;
         let contract;
 
-        // Verificamos si es un número
         if (/^\d+$/.test(id)) {
             contract = await contractModel.getContractById(Number(id));
-        }
-        // Verificamos si es un UUID válido
-        else if (/^[0-9a-fA-F-]{36}$/.test(id)) {
+        } else if (/^[0-9a-fA-F-]{36}$/.test(id)) {
             contract = await contractModel.getContractByUUID(id);
-        }
-        else {
+        } else {
             return res.status(400).json({ error: "Identificador inválido" });
         }
+
         if (!contract) {
             return res.status(404).json({ error: "Contrato no encontrado" });
         }
@@ -43,7 +56,6 @@ export const getContractById = async (req, res) => {
         res.status(500).json({ error: "Error al obtener contrato" });
     }
 };
-
 
 // Agregar contrato a la lista de un usuario usando UUID
 export const addContractByUUID = async (req, res) => {
@@ -55,13 +67,11 @@ export const addContractByUUID = async (req, res) => {
             return res.status(400).json({ error: "UUID requerido" });
         }
 
-        // Buscar contrato
         const contrato = await contractModel.getContractByUUID(uuid);
         if (!contrato) {
             return res.status(404).json({ error: "Contrato no encontrado" });
         }
 
-        // Asociar usuario al contrato
         await contractModel.linkUserToContract(usuario_id, contrato.id);
 
         return res.json({ mensaje: "Contrato agregado a tu lista", contrato });
@@ -70,7 +80,6 @@ export const addContractByUUID = async (req, res) => {
         res.status(500).json({ error: "Error al agregar contrato" });
     }
 };
-
 
 // Crear contrato
 export const createContract = async (req, res) => {
@@ -81,7 +90,7 @@ export const createContract = async (req, res) => {
         const { titulo, descripcion } = req.body;
         const creador_id = req.usuario.id;
 
-       if (!req.file ) {
+        if (!req.file) {
             return res.status(400).json({ error: "Se requiere un archivo PDF" });
         }
 
@@ -92,88 +101,123 @@ export const createContract = async (req, res) => {
         const { cid, url } = await uploadFileToIPFS(fileBuffer, fileName);
         console.log("IPFS:", cid, url);
 
-        //guadar contrato en DB
-
+        // 1) Crear contrato en DB (modelo)
         const nuevoContrato = await contractModel.createContract({
             titulo,
             descripcion,
             ipfs_hash: cid,
             ipfs_url: url,
-            creador_id
+            creador_id,
         });
-        let firmantesArray = [];
-        try {
-            if (req.body.firmantes) {
-                firmantesArray = JSON.parse(req.body.firmantes); // viene como string desde el front
+
+        // 2) Parsear firmantes (vienen como string en multipart/form-data)
+        let firmantesArray = parseFirmantes(req.body.firmantes);
+
+        // Normalizar campos y filtrar inválidos
+        firmantesArray = firmantesArray
+            .map((f) => ({
+                email: (f.email || "").trim(),
+                nombre_completo: (f.nombre_completo || f.nombre || "").trim(),
+                rol_firmante: f.rol_firmante || f.rol || "firmante",
+                usuario_id: f.usuario_id || null,
+            }))
+            .filter((f) => !!f.email);
+
+        // 3) Insertar firmantes usando el modelo (MVC)
+        let invitados = 0;
+        for (const f of firmantesArray) {
+            try {
+                await signerModel.addSigner({
+                    contrato_id: nuevoContrato.id,     // 👈 usamos ID numérico del contrato recién creado
+                    usuario_id: f.usuario_id || null,  // si viene, mejor para matchear por usuario_id
+                    email: f.email,
+                    nombre_completo: f.nombre_completo || f.email,
+                    rol_firmante: f.rol_firmante,
+                });
+                invitados++;
+            } catch (e) {
+                // No frenamos toda la creación por un firmante fallido; log y seguimos
+                console.error("⚠️ No se pudo insertar firmante:", f.email, e?.message);
             }
-        } catch (e) {
-            console.error("Error parseando firmantes:", e);
         }
 
+        // 4) (Opcional) Si hubo firmantes, actualizar estado del contrato a 'pendiente_firmas'
+        // Solo si tu modelo tiene este método; no rompemos si no existe.
+       /* if (invitados > 0 && typeof contractModel.updateContractEstadoByNombre === "function") {
+            try {
+                await contractModel.updateContractEstadoByNombre(nuevoContrato.id, "pendiente_firmas");
+            } catch (e) {
+                console.warn("⚠️ No se pudo actualizar estado a pendiente_firmas:", e?.message);
+            }
+        }*/
+
+        // 5) Enviar mails a los firmantes (después de insertarlos)
         for (const f of firmantesArray) {
-            if (f.email) {
+            try {
                 await sendMail(
                     f.email,
                     `Nuevo contrato creado: ${nuevoContrato.titulo}`,
                     `
-                    <p>Hola <b>${f.nombre || "firmante"}</b>,</p>
-                    <p>Se te ha asignado un nuevo contrato en el sistema <b>Blockchain Contracts</b>.</p>
-                    <ul>
-                        <li><b>UUID:</b> ${nuevoContrato.uuid}</li>
-                        <li><b>Título:</b> ${nuevoContrato.titulo}</li>
-                        <li><b>Descripción:</b> ${nuevoContrato.descripcion}</li>
-                        <li><b>URL IPFS:</b> <a href="${nuevoContrato.ipfs_url}" target="_blank">${nuevoContrato.ipfs_url}</a></li>
-                        <li><b>Fecha de creación:</b> ${nuevoContrato.fecha_creacion}</li>
-                    </ul>
-                    <p>Por favor, accedé al sistema para ver más detalles.</p>
-                    `
+          <p>Hola <b>${f.nombre_completo || "firmante"}</b>,</p>
+          <p>Se te ha asignado un nuevo contrato en el sistema <b>Blockchain Contracts</b>.</p>
+          <ul>
+            <li><b>UUID:</b> ${nuevoContrato.uuid}</li>
+            <li><b>Título:</b> ${nuevoContrato.titulo}</li>
+            <li><b>Descripción:</b> ${nuevoContrato.descripcion || "-"}</li>
+            <li><b>URL IPFS:</b> <a href="${nuevoContrato.ipfs_url}" target="_blank" rel="noreferrer">${nuevoContrato.ipfs_url}</a></li>
+            <li><b>Fecha de creación:</b> ${nuevoContrato.fecha_creacion}</li>
+          </ul>
+          <p>Ingresá al sistema para ver y firmar el documento.</p>
+          `
                 );
+                console.log("📩 Enviando mail a:", f.email);
+            } catch (e) {
+                console.error("⚠️ Error enviando mail a:", f.email, e?.message);
             }
         }
-        console.log("Contrato guardado en DB:", nuevoContrato);
+
+        console.log("Contrato guardado en DB:", nuevoContrato, "— firmantes insertados:", invitados);
 
         res.status(201).json({
-            mensaje: "Contrato creado, subido a IPFS correctamente y notificado a los firmantes",
-            contrato: nuevoContrato
+            mensaje:
+                invitados > 0
+                    ? "Contrato creado, subido a IPFS, firmantes invitados y notificados."
+                    : "Contrato creado y subido a IPFS (sin firmantes).",
+            contrato: nuevoContrato,
+            firmantes_invitados: invitados,
         });
-
     } catch (error) {
         console.error("Error detallado al crear contrato:", error);
         res.status(500).json({ error: "Error al crear contrato", detalle: error.message });
     }
 };
 
-
 export const uploadContractToIPFS = async (req, res) => {
     try {
         const { id } = req.params;
 
-        // Verificar si el contrato existe
         const contrato = await contractModel.getContractById(id);
         if (!contrato) {
             return res.status(404).json({ error: "Contrato no encontrado" });
         }
 
-        // Verificar que tenga un PDF para subir
         if (!contrato.contenido_pdf_path) {
             return res.status(400).json({ error: "El contrato no tiene un PDF para subir a IPFS" });
         }
 
-        // Subir archivo a IPFS usando Storacha
         const { cid, url } = await uploadFileToIPFS(contrato.contenido_pdf_path);
-
-        // Guardar hash y URL en la base
         const contratoActualizado = await contractModel.updateIPFSData(id, cid, url);
 
         res.json({
             mensaje: "Contrato subido a IPFS correctamente",
-            contrato: contratoActualizado
+            contrato: contratoActualizado,
         });
     } catch (error) {
         console.error("Error al subir contrato a IPFS:", error);
         res.status(500).json({ error: "Error al subir contrato a IPFS" });
     }
 };
+
 export const deleteContract = async (req, res) => {
     try {
         const { id } = req.params;
@@ -183,7 +227,6 @@ export const deleteContract = async (req, res) => {
             return res.status(404).json({ error: "Contrato no encontrado" });
         }
 
-        // Solo puede eliminar el creador o un admin
         const esAdmin = req.usuario.rol === "admin";
         const esCreador = Number(contrato.creador_id) === Number(req.usuario.id);
 
@@ -192,7 +235,6 @@ export const deleteContract = async (req, res) => {
         }
 
         const eliminado = await contractModel.deleteContract(id);
-        // eliminado trae { id, titulo } por el RETURNING del modelo
         return res.json({
             mensaje: "Contrato eliminado exitosamente",
             contrato: eliminado,

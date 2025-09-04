@@ -31,16 +31,42 @@ export const getSignersByContractId = async (contratoId) => {
 };
 
 // Agregar un firmante
+const normalizeEmail = (e) => (e || "").trim();
+
 export const addSigner = async ({ contrato_id, usuario_id, email, nombre_completo, rol_firmante }) => {
-    const result = await pool.query(
-        `
-            INSERT INTO firmantes (contrato_id, usuario_id, email, nombre_completo, rol_firmante)
-            VALUES ($1, $2, $3, $4, $5)
-                RETURNING id, contrato_id, usuario_id, email, nombre_completo, rol_firmante, estado_id
-        `,
-        [contrato_id, usuario_id || null, email, nombre_completo, rol_firmante]
-    );
-    return result.rows[0];
+    const client = await pool.connect();
+    try {
+        await client.query("BEGIN");
+
+        const emailNorm = normalizeEmail(email);
+
+        // Si no viene usuario_id, buscálo por email (case-insensitive)
+        let userId = usuario_id || null;
+        if (!userId && emailNorm) {
+            const u = await client.query(
+                `SELECT id FROM usuarios WHERE LOWER(email) = LOWER($1) LIMIT 1`,
+                [emailNorm]
+            );
+            if (u.rows[0]) userId = u.rows[0].id;
+        }
+
+        const result = await client.query(
+            `
+      INSERT INTO firmantes (contrato_id, usuario_id, email, nombre_completo, rol_firmante)
+      VALUES ($1, $2, $3, $4, $5)
+      RETURNING id, contrato_id, usuario_id, email, nombre_completo, rol_firmante, estado_id
+      `,
+            [contrato_id, userId, emailNorm, nombre_completo, rol_firmante]
+        );
+
+        await client.query("COMMIT");
+        return result.rows[0];
+    } catch (e) {
+        await client.query("ROLLBACK");
+        throw e;
+    } finally {
+        client.release();
+    }
 };
 
 // Actualizar estado de firma (administrativo)
@@ -69,27 +95,23 @@ export const findSignerByContractAndEmail = async (contrato_id, email) => {
 export const getMyPendingSignings = async (userId, email) => {
     const result = await pool.query(
         `
-    SELECT
-      c.uuid              AS contrato_uuid,
-      c.titulo,
-      c.descripcion,
-      c.ipfs_url,
-      c.fecha_creacion,
-      ec.nombre           AS estado_contrato,
-      (u_creador.nombre || ' ' || u_creador.apellido) AS creador,
-      f.id                AS firmante_id,
-      f.email,
-      f.usuario_id,
-      ef.nombre           AS estado_firma
-    FROM firmantes f
-    JOIN contratos c             ON c.id = f.contrato_id
-    LEFT JOIN usuarios u_creador ON u_creador.id = c.creador_id
-    JOIN estados_firma ef        ON ef.id = f.estado_id
-    JOIN estados_contrato ec     ON ec.id = c.estado_id
-    WHERE (f.usuario_id = $1 OR f.email = $2)
-      AND ef.nombre = 'pendiente'
-    ORDER BY c.fecha_creacion DESC
-    `,
+            SELECT
+                c.uuid AS contrato_uuid, c.titulo, c.descripcion, c.ipfs_url, c.fecha_creacion,
+                ec.nombre AS estado_contrato,
+                (u_creador.nombre || ' ' || u_creador.apellido) AS creador,
+                f.id AS firmante_id, f.email, f.usuario_id, ef.nombre AS estado_firma
+            FROM firmantes f
+                     JOIN contratos c             ON c.id = f.contrato_id
+                     LEFT JOIN usuarios u_creador ON u_creador.id = c.creador_id
+                     JOIN estados_firma ef        ON ef.id = f.estado_id
+                     JOIN estados_contrato ec     ON ec.id = c.estado_id
+            WHERE (
+                ($1::int IS NOT NULL AND f.usuario_id = $1)
+                    OR ($2::text IS NOT NULL AND LOWER(TRIM(f.email)) = LOWER(TRIM($2)))
+                )
+              AND ef.nombre = 'pendiente'
+            ORDER BY c.fecha_creacion DESC
+        `,
         [userId, email]
     );
     return result.rows;
