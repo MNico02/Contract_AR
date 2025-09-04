@@ -28,6 +28,7 @@ router.post(
     contractController.addContractByUUID
 );
 
+
 // Eliminar contrato
 router.delete("/:id", verificarToken, verificarRol(["admin", "usuario"]), contractController.deleteContract);
 
