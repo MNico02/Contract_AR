@@ -1,7 +1,24 @@
 import * as contractModel from "../models/contractModel.js";
 import { uploadFileToIPFS } from "../services/ipfsService.js";
 import { sendMail } from "../utils/mailer.js";
-// Obtener todos los contratos
+import * as signerModel from "../models/signerModel.js";
+
+
+// Helper: parsea firmantes que pueden venir como string (FormData) o como array
+function parseFirmantes(raw) {
+    if (!raw) return [];
+    if (Array.isArray(raw)) return raw;
+    if (typeof raw === "string") {
+        try {
+            const arr = JSON.parse(raw);
+            return Array.isArray(arr) ? arr : [];
+        } catch {
+            return [];
+        }
+    }
+    return [];
+}
+
 // Obtener todos los contratos del usuario autenticado
 export const getContracts = async (req, res) => {
     try {
@@ -105,41 +122,70 @@ export const createContract = async (req, res) => {
             creador_id
         });
         await contractModel.linkUserToContract(creador_id, nuevoContrato.id);
-        let firmantesArray = [];
-        try {
-            if (req.body.firmantes) {
-                firmantesArray = JSON.parse(req.body.firmantes); // viene como string desde el front
+        // 2) Parsear firmantes (vienen como string en multipart/form-data)
+        let firmantesArray = parseFirmantes(req.body.firmantes);
+
+        // Normalizar campos y filtrar inválidos
+        firmantesArray = firmantesArray
+            .map((f) => ({
+                email: (f.email || "").trim(),
+                nombre_completo: (f.nombre_completo || f.nombre || "").trim(),
+                rol_firmante: f.rol_firmante || f.rol || "firmante",
+                usuario_id: f.usuario_id || null,
+            }))
+            .filter((f) => !!f.email);
+
+        // 3) Insertar firmantes usando el modelo (MVC)
+        let invitados = 0;
+        for (const f of firmantesArray) {
+            try {
+                await signerModel.addSigner({
+                    contrato_id: nuevoContrato.id,     // 👈 usamos ID numérico del contrato recién creado
+                    usuario_id: f.usuario_id || null,  // si viene, mejor para matchear por usuario_id
+                    email: f.email,
+                    nombre_completo: f.nombre_completo || f.email,
+                    rol_firmante: f.rol_firmante,
+                });
+                invitados++;
+            } catch (e) {
+                // No frenamos toda la creación por un firmante fallido; log y seguimos
+                console.error("⚠️ No se pudo insertar firmante:", f.email, e?.message);
             }
-        } catch (e) {
-            console.error("Error parseando firmantes:", e);
         }
 
         for (const f of firmantesArray) {
-            if (f.email) {
+            try {
                 await sendMail(
                     f.email,
                     `Nuevo contrato creado: ${nuevoContrato.titulo}`,
                     `
-                    <p>Hola <b>${f.nombre || "firmante"}</b>,</p>
-                    <p>Se te ha asignado un nuevo contrato en el sistema <b>Blockchain Contracts</b>.</p>
-                    <ul>
-                        <li><b>UUID:</b> ${nuevoContrato.uuid}</li>
-                        <li><b>Título:</b> ${nuevoContrato.titulo}</li>
-                        <li><b>Descripción:</b> ${nuevoContrato.descripcion}</li>
-                        <li><b>URL IPFS:</b> <a href="${nuevoContrato.ipfs_url}" target="_blank">${nuevoContrato.ipfs_url}</a></li>
-                        <li><b>Fecha de creación:</b> ${nuevoContrato.fecha_creacion}</li>
-                    </ul>
-                    <p>Por favor, accedé al sistema para ver más detalles.</p>
-                    `
+                      <p>Hola <b>${f.nombre_completo || "firmante"}</b>,</p>
+          <p>Se te ha asignado un nuevo contrato en el sistema <b>Blockchain Contracts</b>.</p>
+          <ul>
+            <li><b>UUID:</b> ${nuevoContrato.uuid}</li>
+            <li><b>Título:</b> ${nuevoContrato.titulo}</li>
+            <li><b>Descripción:</b> ${nuevoContrato.descripcion || "-"}</li>
+            <li><b>URL IPFS:</b> <a href="${nuevoContrato.ipfs_url}" target="_blank" rel="noreferrer">${nuevoContrato.ipfs_url}</a></li>
+            <li><b>Fecha de creación:</b> ${nuevoContrato.fecha_creacion}</li>
+          </ul>
+          <p>Ingresá al sistema para ver y firmar el documento.</p>
+          `
                 );
+                console.log("📩 Enviando mail a:", f.email);
+            } catch (e) {
+                console.error("⚠️ Error enviando mail a:", f.email, e?.message);
             }
         }
 
-        console.log("Contrato guardado en DB:", nuevoContrato);
 
+        console.log("Contrato guardado en DB:", nuevoContrato, "— firmantes insertados:", invitados);
         res.status(201).json({
-            mensaje: "Contrato creado, subido a IPFS correctamente y notificado a los firmantes",
-            contrato: nuevoContrato
+            mensaje:
+                invitados > 0
+                    ? "Contrato creado, subido a IPFS, firmantes invitados y notificados."
+                    : "Contrato creado y subido a IPFS (sin firmantes).",
+            contrato: nuevoContrato,
+            firmantes_invitados: invitados,
         });
 
     } catch (error) {
