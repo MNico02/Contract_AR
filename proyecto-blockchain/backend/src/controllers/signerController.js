@@ -80,6 +80,7 @@ export const getMyPendingSignings = async (req, res) => {
         if (!user) return res.status(401).json({ error: "No autenticado" });
 
         const { id: userId, email } = user;
+        console.log('>>> req.usuario', req.usuario);
         const rows = await signerModel.getMyPendingSignings(userId || null, email || null);
         return res.json(rows);
     } catch (err) {
