@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import api from '../api/api';
 import { Link, useNavigate } from 'react-router-dom';
-import MetaMaskButton from '../components/MetaMaskButton';
+import VincularMetaMaskButton from '../components/VincularMetaMaskButton';
 
 const Dashboard = () => {
     const [contratos, setContratos] = useState([]);
@@ -151,7 +151,7 @@ const Dashboard = () => {
                     <div className="collapse navbar-collapse" id="navbarNav">
                         <ul className="navbar-nav ms-auto align-items-center">
                             <li className="nav-item me-3">
-                                <MetaMaskButton />
+                                <VincularMetaMaskButton />
                             </li>
                             <li className="nav-item dropdown">
                                 <a className="nav-link dropdown-toggle text-white" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown">
