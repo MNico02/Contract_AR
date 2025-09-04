@@ -13,9 +13,11 @@ import {
     updateProfile,
     forgotPassword,
     resetPassword,
-    verifyResetCode
+    verifyResetCode,
+    vincularWallet
 } from "../controllers/userController.js";
 import { verificarToken, verificarRol } from "../middleware/authMiddleware.js";
+import { generarNonce, obtenerNonce } from "../controllers/userController.js";
 
 const router = express.Router();
 
@@ -50,5 +52,12 @@ router.get("/:id/stats", getUserStats);
 router.get("/:id", getUserById);
 router.put("/:id", updateUser);
 router.delete("/:id", verificarRol(["admin"]), deleteUser);
+
+// Nueva ruta para vincular wallet
+router.post("/vincular-wallet", vincularWallet);
+
+// Nonce
+router.post("/nonce/generar", generarNonce);
+router.get("/nonce", obtenerNonce);
 
 export default router;

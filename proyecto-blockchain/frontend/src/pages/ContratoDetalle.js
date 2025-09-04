@@ -87,8 +87,8 @@ const ContratoDetalle = () => {
 
         try {
             setSigning(true);
-            // Ajustá este endpoint a tu backend (por ejemplo /contratos/:id/firmar)
-            const res = await api.post(`/contratos/${contrato.id}/firmar`);
+
+            const res = await api.post(`/firmantes/contratos/${contrato.uuid}/firmar`);
             // Actualizar vista con el contrato retornado (si tu backend lo devuelve)
             if (res?.data?.contrato) {
                 setContrato(res.data.contrato);

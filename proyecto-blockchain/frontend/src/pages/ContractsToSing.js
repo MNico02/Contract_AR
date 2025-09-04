@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import api from "../api/api";
 
 const ContractsToSign = () => {
@@ -15,6 +15,7 @@ const ContractsToSign = () => {
     const [itemsPerPage] = useState(9);
 
     const [signingUuid, setSigningUuid] = useState(null);
+    const navigate = useNavigate(); // 👈 para redirigir
 
     useEffect(() => {
         fetchPendientes();
@@ -30,7 +31,7 @@ const ContractsToSign = () => {
         setLoading(true);
         try {
             const res = await api.get("/firmantes/mis-pendientes");
-            // res.data: [{ contrato_uuid, titulo, descripcion, ipfs_url, fecha_creacion, estado_contrato, creador, ... }]
+
             setItems(res.data || []);
             setFiltered(res.data || []);
         } catch (err) {
@@ -77,11 +78,11 @@ const ContractsToSign = () => {
 
         try {
             setSigningUuid(contrato_uuid);
-            // Si tu instancia api ya pone el token, no hace falta headers.
+
             await api.post(`/firmantes/contratos/${contrato_uuid}/firmar`);
-            // Refrescar lista (este contrato ya no aparecerá si quedó firmado completo o si seguís filtrando por 'pendiente')
-            await fetchPendientes();
-            alert("Firma registrada.");
+            alert("✅ Firma registrada.");
+            // 🔄 Redirigir a "Mis contratos"
+            navigate("/contratos");
         } catch (err) {
             console.error("Error firmando:", err);
             alert(err?.response?.data?.error || "No se pudo firmar el contrato.");
@@ -155,9 +156,9 @@ const ContractsToSign = () => {
                     <div className="row g-3">
                         <div className="col-md-5">
                             <div className="input-group">
-                <span className="input-group-text bg-light">
-                  <i className="bi bi-search"></i>
-                </span>
+                                <span className="input-group-text bg-light">
+                                    <i className="bi bi-search"></i>
+                                </span>
                                 <input
                                     type="text"
                                     className="form-control"
@@ -240,9 +241,9 @@ const ContractsToSign = () => {
                                         <div className="d-flex justify-content-between align-items-start mb-3">
                                             <h5 className="card-title mb-0">{it.titulo}</h5>
                                             <span className={`badge bg-${badge.color}`}>
-                        <i className={`bi ${badge.icon} me-1`} />
+                                                 <i className={`bi ${badge.icon} me-1`} />
                                                 {it.estado_contrato?.replace("_", " ")}
-                      </span>
+                                            </span>
                                         </div>
                                         <p className="card-text text-muted small">
                                             {it.descripcion ? `${it.descripcion.substring(0, 100)}...` : "-"}
@@ -317,10 +318,10 @@ const ContractsToSign = () => {
                                             </td>
                                             <td className="text-muted">{it.creador || "—"}</td>
                                             <td>
-                          <span className={`badge bg-${badge.color}`}>
-                            <i className={`bi ${badge.icon} me-1`} />
-                              {it.estado_contrato?.replace("_", " ")}
-                          </span>
+                                                  <span className={`badge bg-${badge.color}`}>
+                                                    <i className={`bi ${badge.icon} me-1`} />
+                                                      {it.estado_contrato?.replace("_", " ")}
+                                                  </span>
                                             </td>
                                             <td className="text-muted">{formatDate(it.fecha_creacion)}</td>
                                             <td>
@@ -390,12 +391,12 @@ const ContractsToSign = () => {
             )}
 
             <style jsx="true">{`
-        .hover-shadow:hover {
-          transform: translateY(-2px);
-          box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15) !important;
-          transition: all 0.3s ease;
-        }
-      `}</style>
+            .hover-shadow:hover {
+              transform: translateY(-2px);
+              box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15) !important;
+              transition: all 0.3s ease;
+            }
+          `}</style>
         </div>
     );
 };

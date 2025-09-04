@@ -109,7 +109,7 @@ export const createContract = async (req, res) => {
             ipfs_url: url,
             creador_id,
         });
-
+        await contractModel.linkUserToContract(creador_id, nuevoContrato.id);
         // 2) Parsear firmantes (vienen como string en multipart/form-data)
         let firmantesArray = parseFirmantes(req.body.firmantes);
 
@@ -234,11 +234,21 @@ export const deleteContract = async (req, res) => {
             return res.status(403).json({ error: "No autorizado para eliminar este contrato" });
         }
 
-        const eliminado = await contractModel.deleteContract(id);
-        return res.json({
-            mensaje: "Contrato eliminado exitosamente",
-            contrato: eliminado,
-        });
+        // 🔑 Chequear cuántos vínculos hay
+        const vinculados = await contractModel.countUsersLinkedToContract(contrato.id);
+
+        if (vinculados > 1) {
+            // Si hay más de un usuario vinculado → solo se elimina el vínculo del que borra
+            await contractModel.unlinkUserFromContract(usuario_id, contrato.id);
+            return res.json({ mensaje: "Contrato eliminado solo de tu lista" });
+        } else {
+            // Si es el único vinculado → eliminar contrato completo
+            const eliminado = await contractModel.deleteContract(id);
+            return res.json({
+                mensaje: "Contrato eliminado definitivamente",
+                contrato: eliminado,
+            });
+        }
     } catch (error) {
         console.error("Error al eliminar contrato:", error);
         return res.status(500).json({ error: "Error al eliminar contrato" });

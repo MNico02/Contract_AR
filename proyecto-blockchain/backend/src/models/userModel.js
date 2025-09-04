@@ -201,3 +201,38 @@ export const markResetUsed = async (id) => {
     `, [id]);
     return result.rows[0];
 };
+
+// Vincular dirección de wallet a usuario
+export const vincularWallet = async (userId, direccion_wallet) => {
+    const result = await pool.query(`
+        UPDATE usuarios
+        SET direccion_wallet = $1
+        WHERE id = $2
+        RETURNING id, uuid, email, direccion_wallet
+    `, [direccion_wallet, userId]);
+
+    return result.rows[0];
+};
+
+
+// Generar y asignar un nuevo nonce
+export const setNonceForUser = async (userId) => {
+    const nonce = crypto.randomInt(100000, 999999).toString(); // ej: "583920"
+    const result = await pool.query(`
+        UPDATE usuarios
+        SET nonce = $1
+        WHERE id = $2
+        RETURNING id, direccion_wallet, nonce
+    `, [nonce, userId]);
+    return result.rows[0];
+};
+
+// Obtener nonce de un usuario
+export const getNonceByUserId = async (userId) => {
+    const result = await pool.query(`
+        SELECT id, direccion_wallet, nonce
+        FROM usuarios
+        WHERE id = $1
+    `, [userId]);
+    return result.rows[0];
+};

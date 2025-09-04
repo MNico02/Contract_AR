@@ -131,13 +131,13 @@ export const signContractByUuidForUser = async (userId, email, uuid) => {
 
         // 1) Traer el firmante vinculado al contrato (por uuid) y bloquear fila
         const qFirmante = `
-      SELECT f.id, f.estado_id, f.usuario_id, f.email, f.contrato_id,
-             c.id AS contrato_id, c.uuid AS contrato_uuid, c.estado_id AS contrato_estado
-      FROM firmantes f
-      JOIN contratos c ON c.id = f.contrato_id
-      WHERE c.uuid = $1 AND (f.usuario_id = $2 OR f.email = $3)
-      FOR UPDATE
-    `;
+            SELECT f.id, f.estado_id, f.usuario_id, f.email, f.contrato_id,
+                   c.id AS contrato_id, c.uuid AS contrato_uuid, c.estado_id AS contrato_estado
+            FROM firmantes f
+                     JOIN contratos c ON c.id = f.contrato_id
+            WHERE c.uuid = $1 AND (f.usuario_id = $2 OR f.email = $3)
+                FOR UPDATE
+        `;
         const firmante = (await client.query(qFirmante, [uuid, userId, email])).rows[0];
 
         if (!firmante) {
@@ -174,16 +174,25 @@ export const signContractByUuidForUser = async (userId, email, uuid) => {
             `UPDATE firmantes SET estado_id = $1, fecha_firma = NOW() WHERE id = $2`,
             [firmaFirmadoId, firmante.id]
         );
+        // 2b) Asegurar que el contrato quede vinculado al usuario
+        if (userId) {
+            await client.query(
+                `INSERT INTO usuarios_contratos (usuario_id, contrato_id)
+                 VALUES ($1, $2)
+                 ON CONFLICT (usuario_id, contrato_id) DO NOTHING`,
+                [userId, firmante.contrato_id]
+            );
+        }
 
         // 3) ¿Quedan pendientes?
         const agg = await client.query(
             `
-      SELECT
-        COUNT(*) FILTER (WHERE estado_id = $1) AS pendientes,
-        COUNT(*) AS total
-      FROM firmantes
-      WHERE contrato_id = $2
-      `,
+                SELECT
+                    COUNT(*) FILTER (WHERE estado_id = $1) AS pendientes,
+                        COUNT(*) AS total
+                FROM firmantes
+                WHERE contrato_id = $2
+            `,
             [firmaPendienteId, firmante.contrato_id]
         );
         const pendientes = parseInt(agg.rows[0].pendientes, 10);
@@ -204,12 +213,12 @@ export const signContractByUuidForUser = async (userId, email, uuid) => {
         // 5) Auditoría
         await client.query(
             `
-      INSERT INTO auditoria_eventos (entidad, entidad_id, usuario_id, accion, detalle)
-      VALUES ($1, $2, $3, $4, $5)
-      `,
+                INSERT INTO auditoria_eventos (entidad, entidad_id, usuario_id, accion, detalle)
+                VALUES ($1, $2, $3, $4, $5)
+            `,
             [
                 "contratos",
-                uuid, // entidad_id es UUID en tu esquema
+                uuid,
                 userId || null,
                 "firmar",
                 JSON.stringify({
@@ -228,4 +237,26 @@ export const signContractByUuidForUser = async (userId, email, uuid) => {
     } finally {
         client.release();
     }
+};
+// Firmar un contrato (cambia estado del firmante a "firmado")
+export const signContract = async (contrato_id, usuario_id) => {
+    const result = await pool.query(`
+        UPDATE firmantes
+        SET estado_id = 2, fecha_firma = CURRENT_TIMESTAMP
+        WHERE contrato_id = $1 AND usuario_id = $2 AND estado_id = 1
+        RETURNING *;
+    `, [contrato_id, usuario_id]);
+
+    return result.rows[0];
+};
+
+// Contar firmas pendientes en un contrato
+export const countPendingSignatures = async (contrato_id) => {
+    const result = await pool.query(`
+        SELECT COUNT(*)::int AS pendientes
+        FROM firmantes
+        WHERE contrato_id = $1 AND estado_id = 1
+    `, [contrato_id]);
+
+    return result.rows[0].pendientes;
 };

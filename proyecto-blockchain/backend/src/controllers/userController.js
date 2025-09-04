@@ -471,3 +471,59 @@ export const resetPassword = async (req, res) => {
         res.status(500).json({ error: "Error al cambiar contraseña" });
     }
 };
+
+// Vincular wallet de un usuario
+export const vincularWallet = async (req, res) => {
+    try {
+        const { direccion_wallet } = req.body;
+        const userId = req.usuario.id; // viene del JWT middleware
+
+        if (!direccion_wallet) {
+            return res.status(400).json({ error: "La dirección de wallet es obligatoria" });
+        }
+
+        const user = await userModel.vincularWallet(userId, direccion_wallet);
+
+        if (!user) {
+            return res.status(404).json({ error: "Usuario no encontrado" });
+        }
+
+        res.json({
+            mensaje: "Wallet vinculada correctamente",
+            usuario: user,
+        });
+    } catch (error) {
+        console.error("❌ Error en vincularWallet:", error);
+        res.status(500).json({ error: "Error interno al vincular wallet" });
+    }
+};
+
+
+
+
+// Generar y guardar un nuevo nonce
+export const generarNonce = async (req, res) => {
+    try {
+        const userId = req.usuario.id; // el id viene del JWT
+        const user = await userModel.setNonceForUser(userId);
+        res.json({ mensaje: "Nonce generado", nonce: user.nonce });
+    } catch (error) {
+        console.error("❌ Error al generar nonce:", error);
+        res.status(500).json({ error: "Error interno al generar nonce" });
+    }
+};
+
+// Obtener el nonce actual
+export const obtenerNonce = async (req, res) => {
+    try {
+        const userId = req.usuario.id;
+        const user = await userModel.getNonceByUserId(userId);
+
+        if (!user) return res.status(404).json({ error: "Usuario no encontrado" });
+
+        res.json({ nonce: user.nonce });
+    } catch (error) {
+        console.error("❌ Error al obtener nonce:", error);
+        res.status(500).json({ error: "Error interno al obtener nonce" });
+    }
+};
