@@ -19,16 +19,31 @@ async function getEstadoId(clientOrPool, tabla, nombre) {
 export const getSignersByContractId = async (contratoId) => {
     const result = await pool.query(
         `
-            SELECT f.id, f.email, f.nombre_completo, f.rol_firmante,
-                   ef.nombre AS estado, f.fecha_invitacion, f.fecha_firma
+            SELECT
+                f.id,
+                f.usuario_id,
+                f.email,
+                f.nombre_completo,
+                f.rol_firmante,
+                ef.nombre AS estado,
+                f.fecha_invitacion,
+                f.fecha_firma,
+                -- datos del usuario (si está vinculado)
+                u.uuid          AS usuario_uuid,
+                u.email         AS usuario_email,
+                u.nombre        AS usuario_nombre,
+                u.apellido      AS usuario_apellido
             FROM firmantes f
                      JOIN estados_firma ef ON f.estado_id = ef.id
+                     LEFT JOIN usuarios u  ON u.id = f.usuario_id
             WHERE f.contrato_id = $1
+            ORDER BY f.id
         `,
         [contratoId]
     );
     return result.rows;
 };
+
 
 // Agregar un firmante
 const normalizeEmail = (e) => (e || "").trim();

@@ -454,43 +454,7 @@ const Dashboard = () => {
                     </div>
                 </div>
 
-                {/* Quick Actions */}
-                <div className="row mt-4">
-                    <div className="col-12">
-                        <div className="card border-0 shadow-sm">
-                            <div className="card-body">
-                                <h5 className="card-title fw-bold mb-3">Acciones Rápidas</h5>
-                                <div className="row">
-                                    <div className="col-md-3 mb-3">
-                                        <Link to="/contratos/nuevo" className="btn btn-outline-primary w-100 py-3">
-                                            <i className="bi bi-file-earmark-plus fs-4 d-block mb-2"></i>
-                                            Nuevo Contrato
-                                        </Link>
-                                    </div>
 
-                                    <div className="col-md-3 mb-3">
-                                        <button className="btn btn-outline-info w-100 py-3">
-                                            <i className="bi bi-people fs-4 d-block mb-2"></i>
-                                            Gestionar Firmantes
-                                        </button>
-                                    </div>
-                                    <div className="col-md-3 mb-3">
-                                        <button className="btn btn-outline-success w-100 py-3">
-                                            <i className="bi bi-graph-up fs-4 d-block mb-2"></i>
-                                            Ver Transacciones
-                                        </button>
-                                    </div>
-                                    <div className="col-md-3 mb-3">
-                                        <button className="btn btn-outline-warning w-100 py-3">
-                                            <i className="bi bi-gear fs-4 d-block mb-2"></i>
-                                            Configuración
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
             </div>
         </div>
     );

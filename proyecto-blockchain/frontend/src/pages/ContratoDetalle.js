@@ -1,29 +1,26 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import api from '../api/api';
 
 const ContratoDetalle = () => {
     const { id } = useParams();
     const navigate = useNavigate();
+
     const [contrato, setContrato] = useState(null);
+    const [firmantes, setFirmantes] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [loadingSigners, setLoadingSigners] = useState(true);
     const [downloading, setDownloading] = useState(false);
     const [signing, setSigning] = useState(false);
 
-    useEffect(() => {
-        const cargar = async () => {
-            try {
-                const res = await api.get(`/contratos/${id}`);
-                setContrato(res.data);
-            } catch (e) {
-                console.error(e);
-                alert('No se pudo cargar el contrato');
-            } finally {
-                setLoading(false);
-            }
-        };
-        cargar();
-    }, [id]);
+    const formatDate = (d) =>
+        new Date(d).toLocaleString('es-ES', {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+        });
 
     const getEstadoBadge = (estado) => {
         const map = {
@@ -35,14 +32,46 @@ const ContratoDetalle = () => {
         return map[estado] || 'bg-secondary';
     };
 
-    const formatDate = (d) =>
-        new Date(d).toLocaleString('es-ES', {
-            year: 'numeric',
-            month: 'short',
-            day: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit',
-        });
+    const getEstadoFirmaBadge = (estado) => {
+        const map = {
+            pendiente: 'warning',
+            firmado: 'success',
+            rechazado: 'danger',
+        };
+        return map[estado] || 'secondary';
+    };
+
+    const cargarContrato = useCallback(async () => {
+        const res = await api.get(`/contratos/${id}`);
+        setContrato(res.data);
+    }, [id]);
+
+    const cargarFirmantes = useCallback(async () => {
+        try {
+            setLoadingSigners(true);
+            const res = await api.get(`/firmantes/${id}`);
+            setFirmantes(res.data || []);
+        } catch (e) {
+            console.error('Error cargando firmantes:', e);
+            setFirmantes([]);
+        } finally {
+            setLoadingSigners(false);
+        }
+    }, [id]);
+
+    useEffect(() => {
+        (async () => {
+            try {
+                await cargarContrato();
+                await cargarFirmantes();
+            } catch (e) {
+                console.error(e);
+                alert('No se pudo cargar el contrato');
+            } finally {
+                setLoading(false);
+            }
+        })();
+    }, [cargarContrato, cargarFirmantes]);
 
     const handleDownload = async () => {
         if (!contrato) return;
@@ -55,8 +84,6 @@ const ContratoDetalle = () => {
                 alert('Este contrato no tiene URL/CID disponible.');
                 return;
             }
-
-            // Intento descargar como blob; si falla por CORS, abro en nueva pestaña
             try {
                 const resp = await fetch(url);
                 if (!resp.ok) throw new Error('Gateway respondió con error');
@@ -87,16 +114,9 @@ const ContratoDetalle = () => {
 
         try {
             setSigning(true);
-
-            const res = await api.post(`/firmantes/contratos/${contrato.uuid}/firmar`);
-            // Actualizar vista con el contrato retornado (si tu backend lo devuelve)
-            if (res?.data?.contrato) {
-                setContrato(res.data.contrato);
-            } else {
-                // Si no devuelve el contrato, recargar
-                const rec = await api.get(`/contratos/${id}`);
-                setContrato(rec.data);
-            }
+            await api.post(`/firmantes/contratos/${contrato.uuid}/firmar`);
+            // refrescar datos
+            await Promise.all([cargarContrato(), cargarFirmantes()]);
             alert('Contrato firmado correctamente.');
         } catch (e) {
             console.error(e);
@@ -140,6 +160,8 @@ const ContratoDetalle = () => {
     const pdfUrl =
         contrato.ipfs_url ||
         (contrato.ipfs_hash ? `https://ipfs.io/ipfs/${contrato.ipfs_hash}` : null);
+
+    const pendientes = firmantes.filter((f) => f.estado === 'pendiente').length;
 
     return (
         <div className="container-fluid p-4">
@@ -210,7 +232,7 @@ const ContratoDetalle = () => {
             <div className="row g-4">
                 {/* Detalles */}
                 <div className="col-lg-4">
-                    <div className="card border-0 shadow-sm">
+                    <div className="card border-0 shadow-sm mb-4">
                         <div className="card-body">
                             <h5 className="fw-bold mb-3">Información del contrato</h5>
 
@@ -285,6 +307,60 @@ const ContratoDetalle = () => {
                             )}
                         </div>
                     </div>
+
+                    {/* Firmantes */}
+                    <div className="card border-0 shadow-sm">
+                        <div className="card-header bg-white d-flex justify-content-between align-items-center">
+                            <h5 className="mb-0 fw-bold">Firmantes y estado</h5>
+                            <small className="text-muted">
+                                {loadingSigners ? 'Cargando…' : `${firmantes.length} total • ${pendientes} pendientes`}
+                            </small>
+                        </div>
+                        <div className="card-body p-0">
+                            {loadingSigners ? (
+                                <div className="p-3 text-center">
+                                    <span className="spinner-border spinner-border-sm" />
+                                </div>
+                            ) : firmantes.length === 0 ? (
+                                <div className="p-3 text-muted">No hay firmantes asignados.</div>
+                            ) : (
+                                <ul className="list-group list-group-flush">
+                                    {firmantes.map((f) => (
+                                        <li key={f.id} className="list-group-item d-flex justify-content-between align-items-start">
+                                            <div className="ms-2 me-auto">
+                                                <div className="fw-bold">{f.nombre_completo}</div>
+                                                <div className="small text-muted">{f.email}</div>
+
+                                                {f.usuario_id ? (
+                                                    <div className="small">
+                                                        Usuario:&nbsp;
+                                                        <strong>
+                                                            {f.usuario_nombre} {f.usuario_apellido}
+                                                        </strong>{' '}
+                                                        <span className="text-muted">({f.usuario_email})</span>
+                                                    </div>
+                                                ) : (
+                                                    <div className="small">
+                                                        Usuario:&nbsp;<span className="text-muted">No vinculado (invitado externo)</span>
+                                                    </div>
+                                                )}
+
+                                                {f.rol_firmante && (
+                                                    <div className="small text-muted">Rol: {f.rol_firmante}</div>
+                                                )}
+                                                {f.fecha_firma && (
+                                                    <div className="small">Firmó: {formatDate(f.fecha_firma)}</div>
+                                                )}
+                                            </div>
+                                            <span className={`badge bg-${getEstadoFirmaBadge(f.estado)} rounded-pill text-uppercase`}>
+                        {f.estado}
+                      </span>
+                                        </li>
+                                    ))}
+                                </ul>
+                            )}
+                        </div>
+                    </div>
                 </div>
 
                 {/* Visor PDF */}
@@ -296,12 +372,7 @@ const ContratoDetalle = () => {
                         <div className="card-body" style={{ minHeight: 480 }}>
                             {pdfUrl ? (
                                 <div className="ratio ratio-4x3">
-                                    {/* El gateway puede bloquear embed; si no carga, usar el botón "Abrir PDF" */}
-                                    <iframe
-                                        title="Contrato PDF"
-                                        src={pdfUrl}
-                                        style={{ border: 0 }}
-                                    />
+                                    <iframe title="Contrato PDF" src={pdfUrl} style={{ border: 0 }} />
                                 </div>
                             ) : (
                                 <div className="text-center text-muted py-5">
