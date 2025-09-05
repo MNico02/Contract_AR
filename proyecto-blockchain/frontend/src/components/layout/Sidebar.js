@@ -21,7 +21,7 @@ const Sidebar = () => {
             badge: { text: 'Nuevo', color: 'success' }
         },
         {
-            title: 'Invitaciones',
+            title: 'Pendientes',
             icon: 'bi-people',
             path: '/firmas',
             badge: null
