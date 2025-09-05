@@ -421,13 +421,7 @@ const Dashboard = () => {
                                                                 <i className="bi bi-eye"></i>
                                                             </Link>
 
-                                                            <Link
-                                                                to={`/contratos/${contrato.id}/editar`}
-                                                                className="btn btn-sm btn-outline-secondary"
-                                                                title="Editar"
-                                                            >
-                                                                <i className="bi bi-pencil"></i>
-                                                            </Link>
+
 
                                                             <button
                                                                 className="btn btn-sm btn-outline-danger"

@@ -195,16 +195,37 @@ export const linkUserToContract = async (usuario_id, contrato_id) => {
 };
 
 // Obtener contratos del usuario (creados + compartidos)
+// contractModel.js
 export const getContractsForUser = async (usuario_id) => {
     const result = await pool.query(`
-        SELECT DISTINCT c.*
+        SELECT DISTINCT
+            c.id,
+            c.uuid,
+            c.titulo,
+            c.descripcion,
+            c.ipfs_hash,
+            c.ipfs_url,
+            c.blockchain_hash,
+            c.transaction_hash,
+            ec.nombre AS estado,   -- 👈 traemos el estado como string
+            c.estado_id,
+            rb.nombre AS blockchain_network,
+            c.fecha_creacion,
+            c.fecha_firmado,
+            u.id as creador_id,
+            u.nombre || ' ' || u.apellido AS creador,
+            u.email as creador_email
         FROM contratos c
+                 JOIN estados_contrato ec ON c.estado_id = ec.id   -- 👈 join estado
                  LEFT JOIN usuarios_contratos uc ON uc.contrato_id = c.id
+                 LEFT JOIN usuarios u ON u.id = c.creador_id
+                 LEFT JOIN redes_blockchain rb ON c.blockchain_network_id = rb.id
         WHERE c.creador_id = $1 OR uc.usuario_id = $1
         ORDER BY c.fecha_creacion DESC
     `, [usuario_id]);
     return result.rows;
 };
+
 
 
 
@@ -242,3 +263,17 @@ export const unlinkUserFromContract = async (usuario_id, contrato_id) => {
     );
     return result.rows[0];
 };
+// contractModel.js
+export const hasSignedUsers = async (contrato_id) => {
+    const result = await pool.query(
+        `SELECT 1
+         FROM firmantes f
+         JOIN estados_firma ef ON ef.id = f.estado_id
+         WHERE f.contrato_id = $1
+           AND ef.nombre = 'firmado'
+         LIMIT 1`,
+        [contrato_id]
+    );
+    return result.rowCount > 0;
+};
+
