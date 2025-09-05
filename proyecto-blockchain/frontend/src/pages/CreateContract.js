@@ -59,7 +59,6 @@ const CreateContract = () => {
                 break;
             }
             case 2: {
-                // El backend requiere archivo PDF sí o sí
                 if (!archivo) {
                     setError('Debes subir un archivo PDF del contrato');
                     return false;
@@ -68,10 +67,13 @@ const CreateContract = () => {
             }
             case 3: {
                 const sane = sanitizeFirmantes(firmantes);
-                if (sane.length === 0) {
-                    setError('Agregá al menos un firmante con nombre y email válidos');
+
+                // 👇 NUEVA VALIDACIÓN
+                if (sane.length < 2) {
+                    setError('Debe haber al menos 2 firmantes para continuar');
                     return false;
                 }
+
                 break;
             }
             default:
@@ -80,6 +82,7 @@ const CreateContract = () => {
         setError('');
         return true;
     };
+
 
     function sanitizeFirmantes(list) {
         // normaliza, remueve vacíos y duplicados por email (case-insensitive)
@@ -348,7 +351,7 @@ const CreateContract = () => {
 
                             <div className="alert alert-info mt-3">
                                 <i className="bi bi-info-circle me-2"></i>
-                                El backend requiere un archivo PDF para crear el contrato.
+                               El archivo debe ser PDF para crear el contrato.
                             </div>
                         </div>
                     )}
