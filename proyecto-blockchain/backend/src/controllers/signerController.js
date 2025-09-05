@@ -7,13 +7,18 @@ import * as signerModel from "../models/signerModel.js";
 export const getSignersByContract = async (req, res) => {
     try {
         const { contratoId } = req.params;
-        const signers = await signerModel.getSignersByContractId(contratoId);
+        const idNum = Number(contratoId);
+        if (!Number.isInteger(idNum)) {
+            return res.status(400).json({ error: "contratoId inválido" });
+        }
+        const signers = await signerModel.getSignersByContractId(idNum);
         res.json(signers);
     } catch (error) {
         console.error("Error al obtener firmantes:", error);
         res.status(500).json({ error: "Error al obtener firmantes" });
     }
 };
+
 
 /**
  * Agregar firmante
@@ -88,6 +93,18 @@ export const getMyPendingSignings = async (req, res) => {
         return res.status(500).json({ error: "Error listando pendientes" });
     }
 };
+export const getMySignings = async (req, res) => {
+    try {
+        const userId = req.usuario.id;
+        const email = req.usuario.email;
+        const { estado } = req.query; // opcional
+        const rows = await signerModel.getMySignings({ userId, email, estado });
+        res.json(rows);
+    } catch (e) {
+        console.error("Error getMySignings:", e);
+        res.status(500).json({ error: "Error al obtener mis contratos" });
+    }
+}
 export const signContract = async (req, res) => {
     try {
         const user = req.usuario; // provisto por tu middleware verificarToken
@@ -100,6 +117,14 @@ export const signContract = async (req, res) => {
         const result = await signerModel.signContractByUuidForUser(userId || null, email || null, uuid);
 
         // Respuestas consistentes
+        if (result.status === "no_wallet") {
+            return res.status(403).json({
+                error: "Este usuario no tiene una wallet vinculada. Vinculá tu wallet para poder firmar."
+            });
+        }
+        if (result.status === "already_signed") {
+            return res.status(409).json({ error: "Ya firmaste este contrato." });
+        }
         if (result.status === "not_assigned") {
             return res.status(404).json({ error: "No estás asignado como firmante de este contrato" });
         }

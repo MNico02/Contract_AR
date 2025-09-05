@@ -28,23 +28,49 @@ const Dashboard = () => {
         cargarDatos();
     }, []);
 
-    const recalcStats = (lista) => {
-        setStats({
-            total: lista.length,
-            pendientes: lista.filter(c => c.estado === 'pendiente_firmas').length,
-            firmados: lista.filter(c => c.estado === 'firmado').length,
-            cancelados: lista.filter(c => c.estado === 'cancelado').length
-        });
-    };
+    // Normaliza un identificador de contrato desde diferentes listas
+    const contratoKey = (x) => x?.uuid || x?.contrato_uuid || x?.id;
 
     const cargarDatos = async () => {
+        setLoading(true);
         try {
-            const res = await api.get('/contratos');
-            setContratos(res.data);
+            const [resCreados, resPendientes, resFirmados] = await Promise.all([
+                api.get('/contratos'),                                // contratos creados por mí
+                api.get('/firmantes/mis-pendientes').catch(() => ({ data: [] })),     // pendientes para mí
+                api.get('/firmantes/mis?estado=firmado').catch(() => ({ data: [] }))  // firmados por mí (si existe)
+            ]);
 
-            recalcStats(res.data);
+            const creados = resCreados.data || [];
+            const pendientesParaMi = resPendientes.data || [];
+            const firmadosPorMi = resFirmados.data || [];
+
+            setContratos(creados);
+
+            // TOTAL = contratos creados ∪ pendientesParaMi ∪ firmadosPorMi (sin duplicados)
+            const totalSet = new Set(creados.map(contratoKey));
+            pendientesParaMi.forEach((c) => totalSet.add(contratoKey(c)));
+            firmadosPorMi.forEach((c) => totalSet.add(contratoKey(c)));
+
+            // PENDIENTES = los que tengo que firmar yo
+            const pendientesCount = pendientesParaMi.length;
+
+            // FIRMADOS = (contratos creados por mí en estado 'firmado') ∪ (contratos que YO firmé)
+            const firmadosSet = new Set([
+                ...creados.filter((c) => c.estado === 'firmado').map(contratoKey),
+                ...firmadosPorMi.map(contratoKey)
+            ]);
+
+            // CANCELADOS = de momento contamos los creados por mí cancelados
+            const canceladosCount = creados.filter((c) => c.estado === 'cancelado').length;
+
+            setStats({
+                total: totalSet.size,
+                pendientes: pendientesCount,
+                firmados: firmadosSet.size,
+                cancelados: canceladosCount
+            });
         } catch (error) {
-            console.error('Error al cargar contratos:', error);
+            console.error('Error al cargar datos del dashboard:', error);
         } finally {
             setLoading(false);
         }
@@ -62,10 +88,9 @@ const Dashboard = () => {
 
         try {
             setDeletingId(id);
-            await api.delete(`/contratos/${id}`); // el token ya lo agrega tu api si tenés interceptor
-            const nuevaLista = contratos.filter(c => c.id !== id);
-            setContratos(nuevaLista);
-            recalcStats(nuevaLista);
+            await api.delete(`/contratos/${id}`);
+            // refrescamos todo para que stats cuente también invitaciones correctamente
+            await cargarDatos();
         } catch (err) {
             console.error('Error eliminando contrato:', err);
             alert(err?.response?.data?.error || 'Error eliminando contrato');
@@ -83,7 +108,7 @@ const Dashboard = () => {
         setSuccessUUID("");
         setLoadingUUID(true);
         try {
-            const res = await api.get(`/contratos/${uuidInput}`); // Backend: soporta buscar por UUID
+            const res = await api.get(`/contratos/${uuidInput}`);
             setSearchResult(res.data);
         } catch (err) {
             setSearchResult(null);
@@ -100,7 +125,7 @@ const Dashboard = () => {
             await api.post("/contratos/add-by-uuid", { uuid: searchResult.uuid });
             setSuccessUUID("Contrato agregado correctamente a tu lista");
             setSearchResult(null);
-            cargarDatos(); // refrescar lista
+            await cargarDatos();
         } catch (err) {
             setErrorUUID("Error al agregar contrato a tu lista");
         } finally {
@@ -161,7 +186,6 @@ const Dashboard = () => {
                                 <ul className="dropdown-menu dropdown-menu-end">
                                     <li><Link to="/perfil" className="dropdown-item"><i className="bi bi-person me-2"></i>Mi Perfil</Link></li>
                                     <li><Link to="/configuracion" className="dropdown-item"><i className="bi bi-gear me-2"></i>Configuración</Link></li>
-
                                     <li><hr className="dropdown-divider" /></li>
                                     <li>
                                         <button className="dropdown-item text-danger" onClick={handleLogout}>
@@ -179,12 +203,8 @@ const Dashboard = () => {
                 {/* Welcome Section */}
                 <div className="row mb-4">
                     <div className="col-12">
-                        <h2 className="fw-bold text-dark">
-                            Bienvenido, {user.nombre}
-                        </h2>
-                        <p className="text-muted">
-                            Gestiona tus contratos digitales de forma segura con tecnología blockchain
-                        </p>
+                        <h2 className="fw-bold text-dark">Bienvenido, {user.nombre}</h2>
+                        <p className="text-muted">Gestiona tus contratos digitales de forma segura con tecnología blockchain</p>
                     </div>
                 </div>
 
@@ -333,8 +353,6 @@ const Dashboard = () => {
                     </div>
                 </div>
 
-
-
                 {/* Contracts Section */}
                 <div className="row">
                     <div className="col-12">
@@ -347,8 +365,6 @@ const Dashboard = () => {
                                         <i className="bi bi-plus-circle me-2"></i>
                                         Nuevo Contrato
                                     </Link>
-
-
                                 </div>
                             </div>
                             <div className="card-body p-0">
@@ -365,16 +381,16 @@ const Dashboard = () => {
                                     <div className="table-responsive">
                                         <table className="table table-hover mb-0">
                                             <thead className="bg-light">
-                                                <tr>
-                                                    <th className="border-0 px-4">Título</th>
-                                                    <th className="border-0">Estado</th>
-                                                    <th className="border-0">Red</th>
-                                                    <th className="border-0">Fecha</th>
-                                                    <th className="border-0">Acciones</th>
-                                                </tr>
+                                            <tr>
+                                                <th className="border-0 px-4">Título</th>
+                                                <th className="border-0">Estado</th>
+                                                <th className="border-0">Red</th>
+                                                <th className="border-0">Fecha</th>
+                                                <th className="border-0">Acciones</th>
+                                            </tr>
                                             </thead>
                                             <tbody>
-                                            {contratos.map(contrato => (
+                                            {contratos.map((contrato) => (
                                                 <tr key={contrato.id}>
                                                     <td className="px-4">
                                                         <div>
@@ -438,43 +454,7 @@ const Dashboard = () => {
                     </div>
                 </div>
 
-                {/* Quick Actions */}
-                <div className="row mt-4">
-                    <div className="col-12">
-                        <div className="card border-0 shadow-sm">
-                            <div className="card-body">
-                                <h5 className="card-title fw-bold mb-3">Acciones Rápidas</h5>
-                                <div className="row">
-                                    <div className="col-md-3 mb-3">
-                                        <Link to="/contratos/nuevo" className="btn btn-outline-primary w-100 py-3">
-                                            <i className="bi bi-file-earmark-plus fs-4 d-block mb-2"></i>
-                                            Nuevo Contrato
-                                        </Link>
-                                    </div>
 
-                                    <div className="col-md-3 mb-3">
-                                        <button className="btn btn-outline-info w-100 py-3">
-                                            <i className="bi bi-people fs-4 d-block mb-2"></i>
-                                            Gestionar Firmantes
-                                        </button>
-                                    </div>
-                                    <div className="col-md-3 mb-3">
-                                        <button className="btn btn-outline-success w-100 py-3">
-                                            <i className="bi bi-graph-up fs-4 d-block mb-2"></i>
-                                            Ver Transacciones
-                                        </button>
-                                    </div>
-                                    <div className="col-md-3 mb-3">
-                                        <button className="btn btn-outline-warning w-100 py-3">
-                                            <i className="bi bi-gear fs-4 d-block mb-2"></i>
-                                            Configuración
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
             </div>
         </div>
     );
