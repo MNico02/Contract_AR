@@ -260,3 +260,32 @@ export const countPendingSignatures = async (contrato_id) => {
 
     return result.rows[0].pendientes;
 };
+export const getMySignings = async ({ userId, email, estado }) => {
+    const params = [userId, email];
+    let estadoFilter = '';
+    if (estado) {
+        params.push(estado);
+        estadoFilter = 'AND ef.nombre = $3';
+    }
+
+    const q = `
+    SELECT
+      c.uuid AS contrato_uuid, c.titulo, c.descripcion, c.ipfs_url, c.fecha_creacion,
+      ec.nombre AS estado_contrato,
+      (u_creador.nombre || ' ' || u_creador.apellido) AS creador,
+      f.id AS firmante_id, f.email, f.usuario_id, ef.nombre AS estado_firma
+    FROM firmantes f
+    JOIN contratos c             ON c.id = f.contrato_id
+    LEFT JOIN usuarios u_creador ON u_creador.id = c.creador_id
+    JOIN estados_firma ef        ON ef.id = f.estado_id
+    JOIN estados_contrato ec     ON ec.id = c.estado_id
+    WHERE (
+      ($1::int IS NOT NULL AND f.usuario_id = $1)
+      OR ($2::text IS NOT NULL AND LOWER(TRIM(f.email)) = LOWER(TRIM($2)))
+    )
+    ${estadoFilter}
+    ORDER BY c.fecha_creacion DESC
+  `;
+    const { rows } = await pool.query(q, params);
+    return rows;
+};

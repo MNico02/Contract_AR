@@ -26,12 +26,12 @@ const Sidebar = () => {
             path: '/firmas',
             badge: null
         },
-        {
+        /*{
             title: 'Transacciones',
             icon: 'bi-arrow-left-right',
             path: '/transacciones',
             badge: null
-        },
+        }*/,
         {
             title: 'Perfil',
             icon: 'bi-person',
@@ -47,13 +47,13 @@ const Sidebar = () => {
                     badge: null
                 }]
                 : []
-        ),
+        )/*,
         {
             title: 'Configuración',
             icon: 'bi-gear',
             path: '/configuracion',
             badge: null
-        }
+        }*/
     ];
 
     const handleLogout = () => {

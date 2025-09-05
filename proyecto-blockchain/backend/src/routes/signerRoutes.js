@@ -5,24 +5,16 @@ import { verificarToken, verificarRol } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 
-/**
- * NUEVOS ENDPOINTS
- * - Lista de contratos pendientes de firma del usuario autenticado
- * - Firmar contrato por UUID (firma simple, sin cripto)
- */
+/** ESPECÍFICAS PRIMERO */
 router.get("/mis-pendientes", verificarToken, signerController.getMyPendingSignings);
+router.get("/mis", verificarToken, signerController.getMySignings);
 router.post("/contratos/:uuid/firmar", verificarToken, signerController.signContract);
 
-/**
- * EXISTENTES
- */
-// Obtener firmantes de un contrato (ID numérico interno)
-router.get("/:contratoId", verificarToken, signerController.getSignersByContract);
-
-// Agregar firmante
+/** EXISTENTES */
 router.post("/", verificarToken, verificarRol(["admin", "usuario"]), signerController.addSigner);
-
-// Actualizar estado de firma (administrativo)
 router.put("/:id", verificarToken, signerController.updateSignerStatus);
+
+/** AL FINAL: por contrato (SIN regex) */
+router.get("/:contratoId", verificarToken, signerController.getSignersByContract);
 
 export default router;
