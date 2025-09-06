@@ -117,6 +117,14 @@ export const signContract = async (req, res) => {
         const result = await signerModel.signContractByUuidForUser(userId || null, email || null, uuid);
 
         // Respuestas consistentes
+        if (result.status === "no_wallet") {
+            return res.status(403).json({
+                error: "Este usuario no tiene una wallet vinculada. Vinculá tu wallet para poder firmar."
+            });
+        }
+        if (result.status === "already_signed") {
+            return res.status(409).json({ error: "Ya firmaste este contrato." });
+        }
         if (result.status === "not_assigned") {
             return res.status(404).json({ error: "No estás asignado como firmante de este contrato" });
         }

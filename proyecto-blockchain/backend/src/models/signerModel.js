@@ -67,10 +67,10 @@ export const addSigner = async ({ contrato_id, usuario_id, email, nombre_complet
 
         const result = await client.query(
             `
-      INSERT INTO firmantes (contrato_id, usuario_id, email, nombre_completo, rol_firmante)
-      VALUES ($1, $2, $3, $4, $5)
-      RETURNING id, contrato_id, usuario_id, email, nombre_completo, rol_firmante, estado_id
-      `,
+                INSERT INTO firmantes (contrato_id, usuario_id, email, nombre_completo, rol_firmante)
+                VALUES ($1, $2, $3, $4, $5)
+                    RETURNING id, contrato_id, usuario_id, email, nombre_completo, rol_firmante, estado_id
+            `,
             [contrato_id, userId, emailNorm, nombre_completo, rol_firmante]
         );
 
@@ -138,6 +138,18 @@ export const signContractByUuidForUser = async (userId, email, uuid) => {
     try {
         await client.query("BEGIN");
 
+        // 🔑 Validar que el usuario tiene wallet vinculada
+        if (userId) {
+            const { rows: userRows } = await client.query(
+                `SELECT direccion_wallet FROM usuarios WHERE id = $1 LIMIT 1`,
+                [userId]
+            );
+            if (!userRows[0] || !userRows[0].direccion_wallet) {
+                await client.query("ROLLBACK");
+                return { status: "no_wallet" };
+            }
+        }
+
         const firmaPendienteId   = await getEstadoId(client, "estados_firma", "pendiente");
         const firmaFirmadoId     = await getEstadoId(client, "estados_firma", "firmado");
         const contratoPendId     = await getEstadoId(client, "estados_contrato", "pendiente_firmas");
@@ -194,7 +206,7 @@ export const signContractByUuidForUser = async (userId, email, uuid) => {
             await client.query(
                 `INSERT INTO usuarios_contratos (usuario_id, contrato_id)
                  VALUES ($1, $2)
-                 ON CONFLICT (usuario_id, contrato_id) DO NOTHING`,
+                     ON CONFLICT (usuario_id, contrato_id) DO NOTHING`,
                 [userId, firmante.contrato_id]
             );
         }
@@ -259,7 +271,7 @@ export const signContract = async (contrato_id, usuario_id) => {
         UPDATE firmantes
         SET estado_id = 2, fecha_firma = CURRENT_TIMESTAMP
         WHERE contrato_id = $1 AND usuario_id = $2 AND estado_id = 1
-        RETURNING *;
+            RETURNING *;
     `, [contrato_id, usuario_id]);
 
     return result.rows[0];

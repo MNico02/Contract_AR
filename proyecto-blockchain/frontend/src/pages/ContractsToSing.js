@@ -85,7 +85,11 @@ const ContractsToSign = () => {
             navigate("/contratos");
         } catch (err) {
             console.error("Error firmando:", err);
-            alert(err?.response?.data?.error || "No se pudo firmar el contrato.");
+            if (err?.response?.status === 409 && err?.response?.data?.error === "Ya firmaste este contrato.") {
+                alert("Ya habías firmado este contrato."); // 👈 acá va
+            } else {
+                alert(err?.response?.data?.error || "No se pudo firmar el contrato.");
+            }
         } finally {
             setSigningUuid(null);
         }

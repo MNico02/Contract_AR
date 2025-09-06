@@ -227,9 +227,18 @@ export const deleteContract = async (req, res) => {
             return res.status(404).json({ error: "Contrato no encontrado" });
         }
 
+        const usuario_id = req.usuario.id;
         const esAdmin = req.usuario.rol === "admin";
-        const esCreador = Number(contrato.creador_id) === Number(req.usuario.id);
+        const esCreador = Number(contrato.creador_id) === Number(usuario_id);
 
+        // Si no es admin ni creador, no puede
+        // 🔒 Si el contrato ya tiene firmas → no se puede eliminar
+        const firmado = await contractModel.hasSignedUsers(contrato.id);
+        if (firmado) {
+            return res.status(403).json({ error: "No podés eliminar un contrato que ya tiene firmas." });
+        }
+
+        // Si no es admin ni creador → no puede
         if (!esAdmin && !esCreador) {
             return res.status(403).json({ error: "No autorizado para eliminar este contrato" });
         }
