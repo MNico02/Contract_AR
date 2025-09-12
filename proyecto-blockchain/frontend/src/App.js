@@ -16,6 +16,7 @@ import 'bootstrap/dist/js/bootstrap.bundle.min.js';
 import ContractsToSign from "./pages/ContractsToSing";
 import AdminPage from "./pages/AdminPage";
 
+
 const App = () => {
     return (
         <BrowserRouter>
@@ -42,6 +43,12 @@ const App = () => {
                     <Route path="/firmas" element={<ContractsToSign />} />
                     <Route path="/dashboard" element={<Dashboard />} />
                     <Route path="/admin" element={<AdminPage />} />
+
+
+
+
+
+
                     {/* Placeholder routes for additional pages */}
 
                     <Route path="/transacciones" element={

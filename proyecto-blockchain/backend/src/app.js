@@ -8,6 +8,8 @@ import contractRoutes from "./routes/contractRoutes.js";
 import transactionRoutes from "./routes/transactionRoutes.js";
 import signerRoutes from "./routes/signerRoutes.js";
 
+import paymentRoutes from "./routes/paymentRoutes.js";
+
 dotenv.config();
 console.log("DEBUG .env -> JWT_SECRET length:", (process.env.JWT_SECRET || "").length);
 
@@ -40,6 +42,7 @@ app.use("/api/usuarios", userRoutes);
 app.use("/api/contratos", contractRoutes);
 app.use("/api/firmantes", signerRoutes);
 app.use("/api/transacciones", transactionRoutes);
+app.use("/api/payments", paymentRoutes);
 
 // 404
 app.use((req, res) => res.status(404).json({ error: "Ruta no encontrada" }));

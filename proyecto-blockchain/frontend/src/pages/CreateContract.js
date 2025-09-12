@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from "react"
 import { useNavigate, Link } from 'react-router-dom';
 import api from '../api/api';
+import CheckoutButton from "../components/CheckoutButton";
 
 const MAX_FILE_MB = 20;
 
@@ -12,6 +13,8 @@ const CreateContract = () => {
 
     const [successMsg, setSuccessMsg] = useState('');
     const [showModal, setShowModal] = useState(false);
+
+    const [pagoOk, setPagoOk] = useState(false);
 
     const [contractData, setContractData] = useState({
         titulo: '',
@@ -35,15 +38,22 @@ const CreateContract = () => {
         { number: 5, title: 'Revisión', icon: 'bi-check-circle' }
     ];
 
+
     const handleNext = () => {
         if (validateStep()) {
             if (currentStep === 5) {
+                //con este if no me deja crear el contrato si no esta pagado
+                if (!pagoOk) {
+                    setError("Debes pagar antes de crear el contrato.");
+                    return;
+                }
                 handleSubmit();
             } else {
                 setCurrentStep(currentStep + 1);
             }
         }
     };
+
 
     const handlePrevious = () => {
         setCurrentStep(currentStep - 1);
@@ -192,6 +202,32 @@ const CreateContract = () => {
         setError('');
         setArchivo(file);
     };
+
+    useEffect(() => {
+        const verificarPago = async () => {
+            try {
+                const res = await api.get("/payments/ultimo");
+
+                if (res.data.estado_id === 2) {
+                    // Pago aprobado
+                    setPagoOk(true);
+                } else {
+                    // Sin pagos o pendiente
+                    setPagoOk(false);
+                }
+
+            } catch (err) {
+                console.error("❌ Error consultando pago:", err);
+                setPagoOk(false); // fallback seguro
+            }
+        };
+
+        // Polling cada 5 segundos
+        const interval = setInterval(verificarPago, 5000);
+        verificarPago(); // 👈 ejecuta una vez apenas carga Step 5
+        return () => clearInterval(interval);
+    }, []);
+
 
     return (
         <div className="container-fluid p-4">
@@ -478,6 +514,7 @@ const CreateContract = () => {
                                 Revisá toda la información antes de crear el contrato.
                             </div>
 
+                            {/* Info Básica */}
                             <div className="card mb-3">
                                 <div className="card-header bg-light">
                                     <h6 className="mb-0">Información Básica</h6>
@@ -497,6 +534,7 @@ const CreateContract = () => {
                                 </div>
                             </div>
 
+                            {/* Firmantes */}
                             <div className="card mb-3">
                                 <div className="card-header bg-light">
                                     <h6 className="mb-0">Firmantes ({firmantes.length})</h6>
@@ -506,29 +544,53 @@ const CreateContract = () => {
                                         {sanitizeFirmantes(firmantes).map((f, i) => (
                                             <li key={i} className="mb-2">
                                                 <i className="bi bi-person me-2"></i>
-                                                {f.nombre} ({f.email}) - <span className="badge bg-secondary">{f.rol}</span>
+                                                {f.nombre} ({f.email}) -{" "}
+                                                <span className="badge bg-secondary">{f.rol}</span>
                                             </li>
                                         ))}
                                     </ul>
                                 </div>
                             </div>
 
-                            <div className="card">
+                            {/* Archivo */}
+                            <div className="card mb-3">
                                 <div className="card-header bg-light">
                                     <h6 className="mb-0">Archivo</h6>
                                 </div>
                                 <div className="card-body">
                                     {archivo ? (
                                         <p className="mb-0">
-                                            <strong>{archivo.name}</strong> — {(archivo.size / 1024 / 1024).toFixed(1)} MB
+                                            <strong>{archivo.name}</strong> —{" "}
+                                            {(archivo.size / 1024 / 1024).toFixed(1)} MB
                                         </p>
                                     ) : (
                                         <p className="text-muted mb-0">No hay archivo seleccionado</p>
                                     )}
                                 </div>
                             </div>
+
+                            {/* Pago */}
+                            <div className="mt-4">
+                                {!pagoOk && (
+                                    <div className="alert alert-warning">
+                                        <i className="bi bi-credit-card me-2"></i>
+                                        Debes realizar el pago antes de poder crear el contrato.
+                                        <div className="mt-3">
+                                            <CheckoutButton
+                                                titulo={contractData.titulo}
+                                                firmantes={firmantes}
+                                                onPagoAprobado={() => setPagoOk(true)}
+                                            />
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
                         </div>
                     )}
+
+
+
+
 
                     {/* Navigation Buttons */}
                     <div className="d-flex justify-content-between mt-4">
@@ -569,6 +631,7 @@ const CreateContract = () => {
                             </button>
                         </div>
                     </div>
+
                 </div>
             </div>
         </div>

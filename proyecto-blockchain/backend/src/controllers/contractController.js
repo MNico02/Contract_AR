@@ -2,7 +2,7 @@ import * as contractModel from "../models/contractModel.js";
 import { uploadFileToIPFS } from "../services/ipfsService.js";
 import { sendMail } from "../utils/mailer.js";
 import * as signerModel from "../models/signerModel.js";
-
+import db from "../config/db.js";
 
 // Helper: parsea firmantes que pueden venir como string (FormData) o como array
 function parseFirmantes(raw) {
@@ -94,14 +94,17 @@ export const addContractByUUID = async (req, res) => {
 };
 
 // Crear contrato
+
+
 export const createContract = async (req, res) => {
+    const client = await db.connect();
     try {
-        console.log("Body recibido:", req.body);
-        console.log("Archivo recibido:", req.file);
+        await client.query("BEGIN");
 
         const { titulo, descripcion } = req.body;
         const creador_id = req.usuario.id;
 
+        // 1. Validar archivo PDF
         if (!req.file) {
             return res.status(400).json({ error: "Se requiere un archivo PDF" });
         }
@@ -110,22 +113,24 @@ export const createContract = async (req, res) => {
         const fileName = req.file.originalname;
         console.log("Subiendo a IPFS:", fileName);
 
+        // 2. Subir a IPFS
         const { cid, url } = await uploadFileToIPFS(fileBuffer, fileName);
-        console.log("IPFS:", cid, url);
 
-        //guadar contrato en DB
+        // 3. Guardar contrato en DB (usando tu modelo existente)
         const nuevoContrato = await contractModel.createContract({
             titulo,
             descripcion,
             ipfs_hash: cid,
             ipfs_url: url,
-            creador_id
+            creador_id,
         });
+
+        // Relacionar contrato con usuario creador
         await contractModel.linkUserToContract(creador_id, nuevoContrato.id);
-        // 2) Parsear firmantes (vienen como string en multipart/form-data)
+
+        // 4. Parsear firmantes
         let firmantesArray = parseFirmantes(req.body.firmantes);
 
-        // Normalizar campos y filtrar inválidos
         firmantesArray = firmantesArray
             .map((f) => ({
                 email: (f.email || "").trim(),
@@ -135,40 +140,40 @@ export const createContract = async (req, res) => {
             }))
             .filter((f) => !!f.email);
 
-        // 3) Insertar firmantes usando el modelo (MVC)
+        // 5. Insertar firmantes
         let invitados = 0;
         for (const f of firmantesArray) {
             try {
                 await signerModel.addSigner({
-                    contrato_id: nuevoContrato.id,     // 👈 usamos ID numérico del contrato recién creado
-                    usuario_id: f.usuario_id || null,  // si viene, mejor para matchear por usuario_id
+                    contrato_id: nuevoContrato.id,
+                    usuario_id: f.usuario_id || null,
                     email: f.email,
                     nombre_completo: f.nombre_completo || f.email,
                     rol_firmante: f.rol_firmante,
                 });
                 invitados++;
             } catch (e) {
-                // No frenamos toda la creación por un firmante fallido; log y seguimos
                 console.error("⚠️ No se pudo insertar firmante:", f.email, e?.message);
             }
         }
 
+        // 6. Enviar mails a firmantes
         for (const f of firmantesArray) {
             try {
                 await sendMail(
                     f.email,
                     `Nuevo contrato creado: ${nuevoContrato.titulo}`,
                     `
-                      <p>Hola <b>${f.nombre_completo || "firmante"}</b>,</p>
-          <p>Se te ha asignado un nuevo contrato en el sistema <b>Blockchain Contracts</b>.</p>
-          <ul>
-            <li><b>UUID:</b> ${nuevoContrato.uuid}</li>
-            <li><b>Título:</b> ${nuevoContrato.titulo}</li>
-            <li><b>Descripción:</b> ${nuevoContrato.descripcion || "-"}</li>
-            <li><b>URL IPFS:</b> <a href="${nuevoContrato.ipfs_url}" target="_blank" rel="noreferrer">${nuevoContrato.ipfs_url}</a></li>
-            <li><b>Fecha de creación:</b> ${nuevoContrato.fecha_creacion}</li>
-          </ul>
-          <p>Ingresá al sistema para ver y firmar el documento.</p>
+            <p>Hola <b>${f.nombre_completo || "firmante"}</b>,</p>
+            <p>Se te ha asignado un nuevo contrato en el sistema <b>Blockchain Contracts</b>.</p>
+            <ul>
+              <li><b>UUID:</b> ${nuevoContrato.uuid}</li>
+              <li><b>Título:</b> ${nuevoContrato.titulo}</li>
+              <li><b>Descripción:</b> ${nuevoContrato.descripcion || "-"}</li>
+              <li><b>URL IPFS:</b> <a href="${nuevoContrato.ipfs_url}" target="_blank" rel="noreferrer">${nuevoContrato.ipfs_url}</a></li>
+              <li><b>Fecha de creación:</b> ${nuevoContrato.fecha_creacion}</li>
+            </ul>
+            <p>Ingresá al sistema para ver y firmar el documento.</p>
           `
                 );
                 console.log("📩 Enviando mail a:", f.email);
@@ -177,6 +182,23 @@ export const createContract = async (req, res) => {
             }
         }
 
+        // 7. Vincular el contrato al último pago confirmado del usuario
+        await client.query(
+            `UPDATE contratos_pagos
+             SET contrato_id = $1
+             WHERE id = (
+                 SELECT id
+                 FROM contratos_pagos
+                 WHERE usuario_id = $2
+                   AND contrato_id IS NULL
+                   AND estado_id = 2
+                 ORDER BY fecha_actualizacion DESC
+                 LIMIT 1
+                 )`,
+            [nuevoContrato.id, creador_id]
+        );
+
+        await client.query("COMMIT");
 
         console.log("Contrato guardado en DB:", nuevoContrato, "— firmantes insertados:", invitados);
         res.status(201).json({
@@ -187,12 +209,15 @@ export const createContract = async (req, res) => {
             contrato: nuevoContrato,
             firmantes_invitados: invitados,
         });
-
     } catch (error) {
+        await client.query("ROLLBACK");
         console.error("Error detallado al crear contrato:", error);
         res.status(500).json({ error: "Error al crear contrato", detalle: error.message });
+    } finally {
+        client.release();
     }
 };
+
 
 
 export const uploadContractToIPFS = async (req, res) => {
@@ -269,4 +294,5 @@ export const deleteContract = async (req, res) => {
         return res.status(500).json({ error: "Error al eliminar contrato" });
     }
 };
+
 
