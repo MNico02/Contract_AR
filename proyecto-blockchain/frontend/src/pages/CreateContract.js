@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react"
 import { useNavigate, Link } from 'react-router-dom';
 import api from '../api/api';
-import CheckoutButton from "../components/CheckoutButton";
+import CheckoutButton from "../components/CheckoutButtonnnn";
 
 const MAX_FILE_MB = 20;
 
@@ -30,6 +30,41 @@ const CreateContract = () => {
 
     const [archivo, setArchivo] = useState(null);
 
+    // 🚦 Evita que los efectos "persistentes" pisen lo restaurado al montar
+    const [hydrated, setHydrated] = useState(false);
+
+    // 🔹 Restaurar datos desde sessionStorage al cargar
+    useEffect(() => {
+        const savedData = sessionStorage.getItem("contractData");
+        const savedFirmantes = sessionStorage.getItem("firmantes");
+        const savedStep = sessionStorage.getItem("currentStep");
+        const savedArchivo = sessionStorage.getItem("archivo");
+
+        if (savedData) setContractData(JSON.parse(savedData));
+        if (savedFirmantes) setFirmantes(JSON.parse(savedFirmantes));
+        if (savedStep) setCurrentStep(Number(savedStep));
+
+        // 🔹 Restaurar archivo PDF
+        if (savedArchivo) {
+            try {
+                const { name, type, data } = JSON.parse(savedArchivo);
+                const base64 = data.split(',')[1];
+                const byteString = atob(base64);
+                const len = byteString.length;
+                const bytes = new Uint8Array(len);
+                for (let i = 0; i < len; i++) bytes[i] = byteString.charCodeAt(i);
+                const restoredFile = new File([bytes], name, { type });
+                setArchivo(restoredFile);
+            } catch (err) {
+                console.error("❌ Error restaurando archivo:", err);
+                sessionStorage.removeItem("archivo");
+            }
+        }
+
+        // ✅ Listo para permitir que los efectos empiecen a persistir
+        setHydrated(true);
+    }, []);
+
     const steps = [
         { number: 1, title: 'Información Básica', icon: 'bi-info-circle' },
         { number: 2, title: 'Contenido', icon: 'bi-file-text' },
@@ -37,7 +72,6 @@ const CreateContract = () => {
         { number: 4, title: 'Configuración', icon: 'bi-gear' },
         { number: 5, title: 'Revisión', icon: 'bi-check-circle' }
     ];
-
 
     const handleNext = () => {
         if (validateStep()) {
@@ -49,14 +83,19 @@ const CreateContract = () => {
                 }
                 handleSubmit();
             } else {
-                setCurrentStep(currentStep + 1);
+                const next = currentStep + 1;
+                setCurrentStep(next);
+                // ✅ persistimos inmediatamente el paso (además del useEffect)
+                sessionStorage.setItem("currentStep", String(next));
             }
         }
     };
 
-
     const handlePrevious = () => {
-        setCurrentStep(currentStep - 1);
+        const prev = currentStep - 1;
+        setCurrentStep(prev);
+        // ✅ persistimos inmediatamente el paso al retroceder
+        sessionStorage.setItem("currentStep", String(prev));
     };
 
     const validateStep = () => {
@@ -92,7 +131,6 @@ const CreateContract = () => {
         setError('');
         return true;
     };
-
 
     function sanitizeFirmantes(list) {
         // normaliza, remueve vacíos y duplicados por email (case-insensitive)
@@ -155,6 +193,12 @@ const CreateContract = () => {
             // Dejá que axios setee el boundary automáticamente (no forces Content-Type)
             await api.post('/contratos', formData);
 
+            // 🔹 Limpiar sessionStorage al crear contrato exitosamente
+            sessionStorage.removeItem("contractData");
+            sessionStorage.removeItem("firmantes");
+            sessionStorage.removeItem("currentStep");
+            sessionStorage.removeItem("archivo");
+
             setError('');
             setSuccessMsg('Contrato creado e invitaciones enviadas.');
             setShowModal(true);
@@ -184,6 +228,7 @@ const CreateContract = () => {
         const file = e.target.files?.[0];
         if (!file) {
             setArchivo(null);
+            sessionStorage.removeItem("archivo");
             return;
         }
         // Validación temprana
@@ -191,17 +236,49 @@ const CreateContract = () => {
             setError('El archivo debe ser un PDF (.pdf)');
             e.target.value = '';
             setArchivo(null);
+            sessionStorage.removeItem("archivo");
             return;
         }
         if (file.size > MAX_FILE_MB * 1024 * 1024) {
             setError(`El archivo supera ${MAX_FILE_MB}MB`);
             e.target.value = '';
             setArchivo(null);
+            sessionStorage.removeItem("archivo");
             return;
         }
         setError('');
         setArchivo(file);
+
+        // 🔹 Convertir archivo a Base64 y guardar en sessionStorage
+        const reader = new FileReader();
+        reader.onload = () => {
+            sessionStorage.setItem("archivo", JSON.stringify({
+                name: file.name,
+                type: file.type,
+                size: file.size,
+                data: reader.result,
+            }));
+        };
+        reader.readAsDataURL(file);
     };
+
+    // 🔹 Persistir cada cambio en contractData
+    useEffect(() => {
+        if (!hydrated) return;
+        sessionStorage.setItem("contractData", JSON.stringify(contractData));
+    }, [contractData, hydrated]);
+
+    // 🔹 Persistir firmantes
+    useEffect(() => {
+        if (!hydrated) return;
+        sessionStorage.setItem("firmantes", JSON.stringify(firmantes));
+    }, [firmantes, hydrated]);
+
+    // 🔹 Persistir paso actual (fallback, además de handleNext/handlePrevious)
+    useEffect(() => {
+        if (!hydrated) return;
+        sessionStorage.setItem("currentStep", String(currentStep));
+    }, [currentStep, hydrated]);
 
     useEffect(() => {
         const verificarPago = async () => {
@@ -227,6 +304,7 @@ const CreateContract = () => {
         verificarPago(); // 👈 ejecuta una vez apenas carga Step 5
         return () => clearInterval(interval);
     }, []);
+
 
 
     return (

@@ -6,7 +6,7 @@ const router = express.Router();
 
 router.post(
     "/create_preference",
-    verificarToken,                  // ✅ mete req.usuario
+    verificarToken,                  // mete req.usuario
     verificarRol(["admin","usuario"]), // opcional
     createPreference
 );
