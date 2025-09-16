@@ -15,6 +15,7 @@ import 'bootstrap/dist/css/bootstrap.min.css';
 import 'bootstrap/dist/js/bootstrap.bundle.min.js';
 import ContractsToSign from "./pages/ContractsToSing";
 import AdminPage from "./pages/AdminPage";
+import Adminkpisales from "./pages/Adminkpisales";
 
 
 const App = () => {
@@ -43,6 +44,9 @@ const App = () => {
                     <Route path="/firmas" element={<ContractsToSign />} />
                     <Route path="/dashboard" element={<Dashboard />} />
                     <Route path="/admin" element={<AdminPage />} />
+
+
+                    <Route path="/adminkpisales" element={<Adminkpisales />} />
 
 
 
