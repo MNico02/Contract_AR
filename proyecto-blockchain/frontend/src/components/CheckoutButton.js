@@ -1,32 +1,75 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { initMercadoPago, Wallet } from "@mercadopago/sdk-react";
 import api from "../api/api";
 
-const CheckoutButton = ({ titulo, firmantes }) => {
-    const [loading, setLoading] = useState(false);
+const CheckoutButton = ({ titulo, firmantes, onPagoAprobado }) => {
+    const [preferenceId, setPreferenceId] = useState(null);
+    const [showModal, setShowModal] = useState(false);
+
+    useEffect(() => {
+        initMercadoPago(process.env.REACT_APP_MP_PUBLIC_KEY, { locale: "es-AR" });
+    }, []);
 
     const handleCheckout = async () => {
         try {
-            setLoading(true);
-            const { data } = await api.post("/payments/create_preference", { titulo, firmantes });
+            const response = await api.post("/payments/create_preference", {
+                titulo,
+                firmantes,
+            });
+            console.log("👉 createPreference response:", response.data);
 
-            // Si estamos en pruebas, usá sandbox_init_point; si no, init_point
-            const url = data.sandbox_init_point || data.init_point;
-            if (!url) {
-                console.error("❌ No vino init_point / sandbox_init_point:", data);
-                return;
-            }
-            window.location.href = url;
+            setPreferenceId(response.data.id);
+            setShowModal(true);
         } catch (err) {
             console.error("❌ Error al crear preferencia:", err);
-        } finally {
-            setLoading(false);
         }
     };
 
     return (
-        <button className="btn btn-outline-success" onClick={handleCheckout} disabled={loading}>
-            {loading ? "Creando..." : "Pagar con Mercado Pago"}
-        </button>
+        <>
+            <button className="btn btn-outline-success" onClick={handleCheckout}>
+                Pagar con Mercado Pago
+            </button>
+
+
+
+            {/* Modal con el Wallet Brick */}
+            {showModal && (
+                <div
+                    className="modal fade show d-block"
+                    tabIndex="-1"
+                    style={{ backgroundColor: "rgba(0,0,0,0.5)" }}
+                >
+                    <div className="modal-dialog modal-dialog-centered">
+                        <div className="modal-content">
+                            <div className="modal-header">
+                                <h5 className="modal-title">Finalizar Pago</h5>
+                                <button
+                                    type="button"
+                                    className="btn-close"
+                                    onClick={() => setShowModal(false)}
+                                ></button>
+                            </div>
+                            <div className="modal-body">
+                                {preferenceId ? (
+                                    <Wallet
+                                        initialization={{ preferenceId }}
+                                        onReady={() => console.log("Wallet listo ✅")}
+                                        onSubmit={() => {
+                                            console.log("👉 Pago aprobado (callback)");
+                                            setShowModal(false);
+                                            onPagoAprobado();
+                                        }}
+                                    />
+                                ) : (
+                                    <p>Cargando pago...</p>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+        </>
     );
 };
 

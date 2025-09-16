@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react"
 import { useNavigate, Link } from 'react-router-dom';
 import api from '../api/api';
-import CheckoutButton from "../components/CheckoutButtonnnn";
+import CheckoutButton from "../components/CheckoutButton";
 
 const MAX_FILE_MB = 20;
 

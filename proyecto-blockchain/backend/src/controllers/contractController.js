@@ -162,20 +162,65 @@ export const createContract = async (req, res) => {
             try {
                 await sendMail(
                     f.email,
-                    `Nuevo contrato creado: ${nuevoContrato.titulo}`,
+                    `📄 Nuevo contrato asignado: ${nuevoContrato.titulo}`,
                     `
-            <p>Hola <b>${f.nombre_completo || "firmante"}</b>,</p>
-            <p>Se te ha asignado un nuevo contrato en el sistema <b>Blockchain Contracts</b>.</p>
-            <ul>
-              <li><b>UUID:</b> ${nuevoContrato.uuid}</li>
-              <li><b>Título:</b> ${nuevoContrato.titulo}</li>
-              <li><b>Descripción:</b> ${nuevoContrato.descripcion || "-"}</li>
-              <li><b>URL IPFS:</b> <a href="${nuevoContrato.ipfs_url}" target="_blank" rel="noreferrer">${nuevoContrato.ipfs_url}</a></li>
-              <li><b>Fecha de creación:</b> ${nuevoContrato.fecha_creacion}</li>
-            </ul>
-            <p>Ingresá al sistema para ver y firmar el documento.</p>
-          `
+  <div style="font-family: Arial, sans-serif; color: #333; background: #f7f7f7; padding: 20px;">
+    <div style="max-width: 600px; margin: auto; background: #fff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+      
+      <!-- Encabezado -->
+      <div style="background: #0d6efd; color: #fff; padding: 20px; text-align: center;">
+        <h2 style="margin: 0;">Blockchain Contracts</h2>
+      </div>
+      
+      <!-- Cuerpo -->
+      <div style="padding: 20px;">
+        <p>Hola <b>${f.nombre_completo || "firmante"}</b>,</p>
+        <p>Se te ha asignado un nuevo contrato en el sistema <b>Blockchain Contracts</b>:</p>
+        
+        <table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
+          <tr>
+            <td style="padding: 8px; font-weight: bold;">📌 UUID:</td>
+            <td style="padding: 8px;">${nuevoContrato.uuid}</td>
+          </tr>
+          <tr style="background: #f2f2f2;">
+            <td style="padding: 8px; font-weight: bold;">📄 Título:</td>
+            <td style="padding: 8px;">${nuevoContrato.titulo}</td>
+          </tr>
+          <tr>
+            <td style="padding: 8px; font-weight: bold;">📝 Descripción:</td>
+            <td style="padding: 8px;">${nuevoContrato.descripcion || "-"}</td>
+          </tr>
+          <tr style="background: #f2f2f2;">
+            <td style="padding: 8px; font-weight: bold;">🔗 URL IPFS:</td>
+            <td style="padding: 8px;">
+              <a href="${nuevoContrato.ipfs_url}" target="_blank" style="color: #0d6efd; text-decoration: none;">
+                Ver documento
+              </a>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 8px; font-weight: bold;">📅 Fecha de creación:</td>
+            <td style="padding: 8px;">${nuevoContrato.fecha_creacion}</td>
+          </tr>
+        </table>
+
+        <div style="text-align: center; margin: 30px 0;">
+          <a href="http://localhost:3000/login" 
+             style="background: #0d6efd; color: #fff; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block; font-weight: bold;">
+            Ingresar al sistema y firmar
+          </a>
+        </div>
+      </div>
+      
+      <!-- Footer -->
+      <div style="background: #f2f2f2; color: #555; text-align: center; padding: 10px; font-size: 12px;">
+        © 2025 Blockchain Contracts. Todos los derechos reservados.
+      </div>
+    </div>
+  </div>
+  `
                 );
+
                 console.log("📩 Enviando mail a:", f.email);
             } catch (e) {
                 console.error("⚠️ Error enviando mail a:", f.email, e?.message);
