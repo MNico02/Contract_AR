@@ -3,6 +3,15 @@ import * as contractModel from "../models/contractModel.js";
 import * as signerModel from "../models/signerModel.js"; // 👈 NUEVO
 import { uploadFileToIPFS } from "../services/ipfsService.js";
 import { sendMail } from "../utils/mailer.js";
+import crypto from "crypto";
+
+// helper para hash sha256 hex prefijado con 0x
+function sha256Hex0x(buffer) {
+    const h = crypto.createHash("sha256");
+    h.update(buffer);
+    
+    return "0x" + h.digest("hex");
+}
 
 // Helper: parsea firmantes que pueden venir como string (FormData) o como array
 function parseFirmantes(raw) {
@@ -101,6 +110,8 @@ export const createContract = async (req, res) => {
         const { cid, url } = await uploadFileToIPFS(fileBuffer, fileName);
         console.log("IPFS:", cid, url);
 
+        const fileHash = sha256Hex0x(fileBuffer);
+
         // 1) Crear contrato en DB (modelo)
         const nuevoContrato = await contractModel.createContract({
             titulo,
@@ -108,6 +119,7 @@ export const createContract = async (req, res) => {
             ipfs_hash: cid,
             ipfs_url: url,
             creador_id,
+            blockchain_hash: fileHash,
         });
         await contractModel.linkUserToContract(creador_id, nuevoContrato.id);
         // 2) Parsear firmantes (vienen como string en multipart/form-data)
@@ -189,6 +201,65 @@ export const createContract = async (req, res) => {
     } catch (error) {
         console.error("Error detallado al crear contrato:", error);
         res.status(500).json({ error: "Error al crear contrato", detalle: error.message });
+    }
+};
+
+// POST /api/contratos/:uuid/blockchain-created
+// body: { txHash, network_id }  // network_id = 1 polygon, 2 ethereum (según tu tabla redes_blockchain)
+export const recordBlockchainCreationTx = async (req, res) => {
+    try {
+        const { uuid } = req.params;
+        const { txHash, network_id } = req.body;
+        if (!txHash) return res.status(400).json({ error: "txHash requerido" });
+
+        const contrato = await contractModel.getContractByUUID(uuid);
+        if (!contrato) return res.status(404).json({ error: "Contrato no encontrado" });
+
+        // guardar tx de creación
+        await contractModel.updateContractTx(contrato.id, {
+            transaction_hash: txHash,
+            blockchain_network_id: network_id || 1,
+        });
+
+        // log a transacciones_blockchain
+        await contractModel.insertBlockchainTx({
+            contrato_id: contrato.id,
+            usuario_id: req.usuario.id || null,
+            tipo_transaccion: "create",
+            transaction_hash: txHash,
+            network_id: network_id || 1,
+        });
+
+        return res.json({ ok: true });
+    } catch (e) {
+        console.error("recordBlockchainCreationTx:", e);
+        return res.status(500).json({ error: "No se pudo registrar la transacción" });
+    }
+};
+
+// POST /api/contratos/:uuid/blockchain-signed
+// body: { txHash, network_id, rol: "proveedor"|"consumidor" }
+export const recordBlockchainSignatureTx = async (req, res) => {
+    try {
+        const { uuid } = req.params;
+        const { txHash, network_id, rol } = req.body;
+        if (!txHash) return res.status(400).json({ error: "txHash requerido" });
+
+        const contrato = await contractModel.getContractByUUID(uuid);
+        if (!contrato) return res.status(404).json({ error: "Contrato no encontrado" });
+
+        await contractModel.insertBlockchainTx({
+            contrato_id: contrato.id,
+            usuario_id: req.usuario.id || null,
+            tipo_transaccion: rol === "proveedor" ? "sign_provider" : "sign_consumer",
+            transaction_hash: txHash,
+            network_id: network_id || 1,
+        });
+
+        return res.json({ ok: true });
+    } catch (e) {
+        console.error("recordBlockchainSignatureTx:", e);
+        return res.status(500).json({ error: "No se pudo registrar la transacción de firma" });
     }
 };
 

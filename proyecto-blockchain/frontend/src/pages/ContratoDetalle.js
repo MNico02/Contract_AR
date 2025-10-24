@@ -1,6 +1,34 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
+import { getSigner, getContract /*, ensureNetwork*/ } from "../blockchain/contract";
+import { ethers } from "ethers";
 import api from '../api/api';
+
+async function firmarEnChainYReflejar(contrato, rol /* 'proveedor'|'consumidor' */) {
+    // await ensureNetwork("0x89"); // opcional: forzar red (ej. Polygon mainnet)
+
+    const signer = await getSigner();
+    const contract = getContract(signer);
+
+    // firmar el hash del PDF que guardaste en DB como blockchain_hash (0x...)
+    const firmaBytes = await signer.signMessage(ethers.getBytes(contrato.blockchain_hash));
+
+    const tx = (rol === "proveedor")
+        ? await contract.firmarComoProveedor(contrato.uuid, firmaBytes)
+        : await contract.firmarComoConsumidor(contrato.uuid, firmaBytes);
+
+    const receipt = await tx.wait();
+
+    // 1) registrar tx on-chain en backend
+    await api.post(`/contratos/${contrato.uuid}/blockchain-signed`, {
+        txHash: receipt.transactionHash,
+        network_id: 1, // según tu tabla redes_blockchain
+        rol,
+    });
+
+    // 2) actualizar estados en DB (lo que ya tenías)
+    await api.post(`/firmantes/contratos/${contrato.uuid}/firmar`);
+}
 
 const ContratoDetalle = () => {
     const { id } = useParams();

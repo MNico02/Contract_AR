@@ -38,6 +38,7 @@ export const createContract = async ({
     ipfs_hash, 
     ipfs_url, 
     creador_id,
+    blockchain_hash,
     blockchain_network_id
 }) => {
     const result = await pool.query(`
@@ -47,9 +48,10 @@ export const createContract = async ({
             ipfs_hash, 
             ipfs_url, 
             creador_id,
+            blockchain_hash,
             blockchain_network_id
         )
-        VALUES ($1, $2, $3, $4, $5, $6)
+        VALUES ($1, $2, $3, $4, $5, $6, $7)
         RETURNING *
     `, [
         titulo, 
@@ -57,9 +59,33 @@ export const createContract = async ({
         ipfs_hash, 
         ipfs_url, 
         creador_id,
+        blockchain_hash,
         blockchain_network_id || 1
     ]);
     return result.rows[0];
+};
+
+export const updateContractTx = async (id, { transaction_hash, blockchain_network_id }) => {
+    const { rows } = await pool.query(
+        `UPDATE contratos
+     SET transaction_hash = $1,
+         blockchain_network_id = COALESCE($2, blockchain_network_id)
+     WHERE id = $3
+     RETURNING *`,
+        [transaction_hash, blockchain_network_id || null, id]
+    );
+    return rows[0];
+};
+
+export const insertBlockchainTx = async ({ contrato_id, usuario_id, tipo_transaccion, transaction_hash, network_id }) => {
+    const { rows } = await pool.query(
+        `INSERT INTO transacciones_blockchain
+       (contrato_id, usuario_id, tipo_transaccion, transaction_hash, network_id, estado_id)
+     VALUES ($1, $2, $3, $4, $5, 2)  -- 2 = confirmada (si querés, podés empezar como 1=pending y luego actualizar)
+     RETURNING *`,
+        [contrato_id, usuario_id || null, tipo_transaccion, transaction_hash, network_id || 1]
+    );
+    return rows[0];
 };
 
 // Actualizar contrato

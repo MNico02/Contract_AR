@@ -32,6 +32,9 @@ router.post(
     contractController.addContractByUUID
 );
 
+router.post("/:uuid/blockchain-created", verificarToken, contractController.recordBlockchainCreationTx);
+router.post("/:uuid/blockchain-signed", verificarToken, contractController.recordBlockchainSignatureTx);
+
 // Eliminar contrato
 
 router.delete("/:id", verificarToken, verificarRol(["admin", "usuario"]), contractController.deleteContract);

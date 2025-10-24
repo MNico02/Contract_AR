@@ -1,0 +1,85 @@
+[
+  {
+    "inputs": [
+      { "internalType": "string", "name": "_uuid", "type": "string" },
+      { "internalType": "string", "name": "_ipfsHash", "type": "string" },
+      { "internalType": "string", "name": "_hashOriginal", "type": "string" },
+      { "internalType": "address", "name": "_consumidor", "type": "address" }
+    ],
+    "name": "crearContrato",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      { "internalType": "string", "name": "_uuid", "type": "string" },
+      { "internalType": "bytes", "name": "_firma", "type": "bytes" }
+    ],
+    "name": "firmarComoProveedor",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      { "internalType": "string", "name": "_uuid", "type": "string" },
+      { "internalType": "bytes", "name": "_firma", "type": "bytes" }
+    ],
+    "name": "firmarComoConsumidor",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [{ "internalType": "string", "name": "_uuid", "type": "string" }],
+    "name": "obtenerContrato",
+    "outputs": [
+      { "internalType": "string", "name": "ipfsHash", "type": "string" },
+      { "internalType": "string", "name": "hashOriginal", "type": "string" },
+      { "internalType": "address", "name": "proveedor", "type": "address" },
+      { "internalType": "address", "name": "consumidor", "type": "address" },
+      { "internalType": "uint256", "name": "timestampCreacion", "type": "uint256" },
+      { "internalType": "uint256", "name": "timestampFirmaProveedor", "type": "uint256" },
+      { "internalType": "uint256", "name": "timestampFirmaConsumidor", "type": "uint256" },
+      { "internalType": "uint8", "name": "estado", "type": "uint8" }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [{ "internalType": "string", "name": "_uuid", "type": "string" }],
+    "name": "estaCompletamenteFirmado",
+    "outputs": [{ "internalType": "bool", "name": "", "type": "bool" }],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      { "indexed": false, "internalType": "string", "name": "uuid", "type": "string" },
+      { "indexed": false, "internalType": "string", "name": "ipfsHash", "type": "string" },
+      { "indexed": false, "internalType": "address", "name": "proveedor", "type": "address" }
+    ],
+    "name": "ContratoCreado",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      { "indexed": false, "internalType": "string", "name": "uuid", "type": "string" },
+      { "indexed": false, "internalType": "address", "name": "proveedor", "type": "address" }
+    ],
+    "name": "ContratoFirmadoPorProveedor",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      { "indexed": false, "internalType": "string", "name": "uuid", "type": "string" },
+      { "indexed": false, "internalType": "address", "name": "consumidor", "type": "address" }
+    ],
+    "name": "ContratoFirmadoPorConsumidor",
+    "type": "event"
+  }
+]
