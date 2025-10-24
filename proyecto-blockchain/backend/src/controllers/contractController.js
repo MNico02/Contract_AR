@@ -1,6 +1,6 @@
 import * as contractModel from "../models/contractModel.js";
 import { uploadFileToIPFS } from "../services/ipfsService.js";
-
+import blockchain from "../blockchain/contract.js";
 // Obtener todos los contratos
 export const getContracts = async (req, res) => {
     try {
@@ -126,4 +126,19 @@ export const deleteContract = async (req, res) => {
         console.error("Error al eliminar contrato:", error);
         return res.status(500).json({ error: "Error al eliminar contrato" });
     }
+};
+
+export const getBlockchainContract = async (req, res) => {
+  try {
+    const { uuid } = req.params;
+    const contrato = await blockchain.readOnlyContract.obtenerContrato(uuid);
+
+    res.json({
+      uuid,
+      blockchainData: contrato,
+    });
+  } catch (error) {
+    console.error("Error al consultar contrato en blockchain:", error);
+    res.status(500).json({ error: "Error al consultar en blockchain" });
+  }
 };
