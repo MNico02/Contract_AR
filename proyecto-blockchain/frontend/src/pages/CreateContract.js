@@ -1,6 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from "react"
 import { useNavigate, Link } from 'react-router-dom';
 import api from '../api/api';
+import CheckoutButton from "../components/CheckoutButton";
+
+const MAX_FILE_MB = 20;
 
 const CreateContract = () => {
     const navigate = useNavigate();
@@ -8,10 +11,14 @@ const CreateContract = () => {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
 
+    const [successMsg, setSuccessMsg] = useState('');
+    const [showModal, setShowModal] = useState(false);
+
+    const [pagoOk, setPagoOk] = useState(false);
+
     const [contractData, setContractData] = useState({
         titulo: '',
         descripcion: '',
-        contenido: '',
         blockchain_network: 'polygon',
         fecha_vencimiento: '',
         tipo_contrato: 'servicio'
@@ -21,8 +28,42 @@ const CreateContract = () => {
         { nombre: '', email: '', rol: 'firmante' }
     ]);
 
-    const [archivo, setArchivo] = useState(null); // archivo único
-    const [previewMode, setPreviewMode] = useState(false);
+    const [archivo, setArchivo] = useState(null);
+
+    // 🚦 Evita que los efectos "persistentes" pisen lo restaurado al montar
+    const [hydrated, setHydrated] = useState(false);
+
+    // 🔹 Restaurar datos desde sessionStorage al cargar
+    useEffect(() => {
+        const savedData = sessionStorage.getItem("contractData");
+        const savedFirmantes = sessionStorage.getItem("firmantes");
+        const savedStep = sessionStorage.getItem("currentStep");
+        const savedArchivo = sessionStorage.getItem("archivo");
+
+        if (savedData) setContractData(JSON.parse(savedData));
+        if (savedFirmantes) setFirmantes(JSON.parse(savedFirmantes));
+        if (savedStep) setCurrentStep(Number(savedStep));
+
+        // 🔹 Restaurar archivo PDF
+        if (savedArchivo) {
+            try {
+                const { name, type, data } = JSON.parse(savedArchivo);
+                const base64 = data.split(',')[1];
+                const byteString = atob(base64);
+                const len = byteString.length;
+                const bytes = new Uint8Array(len);
+                for (let i = 0; i < len; i++) bytes[i] = byteString.charCodeAt(i);
+                const restoredFile = new File([bytes], name, { type });
+                setArchivo(restoredFile);
+            } catch (err) {
+                console.error("❌ Error restaurando archivo:", err);
+                sessionStorage.removeItem("archivo");
+            }
+        }
+
+        // ✅ Listo para permitir que los efectos empiecen a persistir
+        setHydrated(true);
+    }, []);
 
     const steps = [
         { number: 1, title: 'Información Básica', icon: 'bi-info-circle' },
@@ -35,63 +76,135 @@ const CreateContract = () => {
     const handleNext = () => {
         if (validateStep()) {
             if (currentStep === 5) {
+                //con este if no me deja crear el contrato si no esta pagado
+                if (!pagoOk) {
+                    setError("Debes pagar antes de crear el contrato.");
+                    return;
+                }
                 handleSubmit();
             } else {
-                setCurrentStep(currentStep + 1);
+                const next = currentStep + 1;
+                setCurrentStep(next);
+                // ✅ persistimos inmediatamente el paso (además del useEffect)
+                sessionStorage.setItem("currentStep", String(next));
             }
         }
     };
 
     const handlePrevious = () => {
-        setCurrentStep(currentStep - 1);
+        const prev = currentStep - 1;
+        setCurrentStep(prev);
+        // ✅ persistimos inmediatamente el paso al retroceder
+        sessionStorage.setItem("currentStep", String(prev));
     };
 
     const validateStep = () => {
         switch (currentStep) {
-            case 1:
-                if (!contractData.titulo || !contractData.descripcion) {
+            case 1: {
+                if (!contractData.titulo?.trim() || !contractData.descripcion?.trim()) {
                     setError('Por favor completa todos los campos obligatorios');
                     return false;
                 }
                 break;
-            case 2:
-                if (!contractData.contenido && !archivo) {
-                    setError('Debes ingresar el contenido del contrato o subir un archivo');
+            }
+            case 2: {
+                if (!archivo) {
+                    setError('Debes subir un archivo PDF del contrato');
                     return false;
                 }
                 break;
-            case 3:
-                if (firmantes.length === 0 || firmantes.some(f => !f.nombre || !f.email)) {
-                    setError('Debes agregar al menos un firmante con nombre y email');
+            }
+            case 3: {
+                const sane = sanitizeFirmantes(firmantes);
+
+                // 👇 NUEVA VALIDACIÓN
+                if (sane.length < 2) {
+                    setError('Debe haber al menos 2 firmantes para continuar');
                     return false;
                 }
+
+                break;
+            }
+            default:
                 break;
         }
         setError('');
         return true;
     };
 
+    function sanitizeFirmantes(list) {
+        // normaliza, remueve vacíos y duplicados por email (case-insensitive)
+        const cleaned = (list || [])
+            .map((f) => ({
+                nombre: (f.nombre || '').trim(),
+                email: (f.email || '').trim(),
+                rol: f.rol || 'firmante'
+            }))
+            .filter((f) => f.email && f.nombre);
+
+        const seen = new Set();
+        const dedup = [];
+        for (const f of cleaned) {
+            const key = f.email.toLowerCase();
+            if (!seen.has(key)) {
+                seen.add(key);
+                dedup.push(f);
+            }
+        }
+        return dedup;
+    }
+
     const handleSubmit = async () => {
         setLoading(true);
         try {
-            const formData = new FormData();
-            formData.append('titulo', contractData.titulo);
-            formData.append('descripcion', contractData.descripcion);
-            formData.append('contenido', contractData.contenido);
-            formData.append('blockchain_network', contractData.blockchain_network);
-            formData.append('firmantes', JSON.stringify(firmantes));
-
-            if (archivo) {
-                formData.append('archivo', archivo);
+            if (!archivo) {
+                setError('Debes subir un archivo PDF del contrato');
+                setLoading(false);
+                return;
             }
 
-            const response = await api.post('/contratos', formData, {
-                headers: { 'Content-Type': 'multipart/form-data' }
-            });
+            const validTypes = ['application/pdf'];
+            if (!validTypes.includes(archivo.type)) {
+                setError('El archivo debe ser un PDF (.pdf)');
+                setLoading(false);
+                return;
+            }
 
-            navigate(`/contratos/${response.data.id}`);
+            const maxBytes = MAX_FILE_MB * 1024 * 1024;
+            if (archivo.size > maxBytes) {
+                setError(`El archivo supera ${MAX_FILE_MB}MB`);
+                setLoading(false);
+                return;
+            }
+
+            const firmantesSane = sanitizeFirmantes(firmantes);
+
+            const formData = new FormData();
+            formData.append('titulo', contractData.titulo.trim());
+            formData.append('descripcion', contractData.descripcion.trim());
+            // Si en el futuro usás este campo en el back, lo sumás.
+            // formData.append('fecha_vencimiento', contractData.fecha_vencimiento || '');
+            formData.append('blockchain_network', contractData.blockchain_network);
+            formData.append('archivo', archivo);
+
+            // 👇 clave: enviar firmantes como STRING JSON
+            formData.append('firmantes', JSON.stringify(firmantesSane));
+
+            // Dejá que axios setee el boundary automáticamente (no forces Content-Type)
+            await api.post('/contratos', formData);
+
+            // 🔹 Limpiar sessionStorage al crear contrato exitosamente
+            sessionStorage.removeItem("contractData");
+            sessionStorage.removeItem("firmantes");
+            sessionStorage.removeItem("currentStep");
+            sessionStorage.removeItem("archivo");
+
+            setError('');
+            setSuccessMsg('Contrato creado e invitaciones enviadas.');
+            setShowModal(true);
         } catch (err) {
-            setError('Error al crear el contrato. Por favor intenta nuevamente.');
+            console.error(err);
+            setError(err?.response?.data?.error || 'Error al crear el contrato. Por favor intentá nuevamente.');
         } finally {
             setLoading(false);
         }
@@ -111,14 +224,88 @@ const CreateContract = () => {
         setFirmantes(updated);
     };
 
-    // Estado para manejar la pestaña activa
-    const [activeTab, setActiveTab] = useState("text"); // "text" o "file"
-
-    // Manejar selección de archivo
     const handleFileChange = (e) => {
-        const file = e.target.files[0];
+        const file = e.target.files?.[0];
+        if (!file) {
+            setArchivo(null);
+            sessionStorage.removeItem("archivo");
+            return;
+        }
+        // Validación temprana
+        if (file.type !== 'application/pdf') {
+            setError('El archivo debe ser un PDF (.pdf)');
+            e.target.value = '';
+            setArchivo(null);
+            sessionStorage.removeItem("archivo");
+            return;
+        }
+        if (file.size > MAX_FILE_MB * 1024 * 1024) {
+            setError(`El archivo supera ${MAX_FILE_MB}MB`);
+            e.target.value = '';
+            setArchivo(null);
+            sessionStorage.removeItem("archivo");
+            return;
+        }
+        setError('');
         setArchivo(file);
+
+        // 🔹 Convertir archivo a Base64 y guardar en sessionStorage
+        const reader = new FileReader();
+        reader.onload = () => {
+            sessionStorage.setItem("archivo", JSON.stringify({
+                name: file.name,
+                type: file.type,
+                size: file.size,
+                data: reader.result,
+            }));
+        };
+        reader.readAsDataURL(file);
     };
+
+    // 🔹 Persistir cada cambio en contractData
+    useEffect(() => {
+        if (!hydrated) return;
+        sessionStorage.setItem("contractData", JSON.stringify(contractData));
+    }, [contractData, hydrated]);
+
+    // 🔹 Persistir firmantes
+    useEffect(() => {
+        if (!hydrated) return;
+        sessionStorage.setItem("firmantes", JSON.stringify(firmantes));
+    }, [firmantes, hydrated]);
+
+    // 🔹 Persistir paso actual (fallback, además de handleNext/handlePrevious)
+    useEffect(() => {
+        if (!hydrated) return;
+        sessionStorage.setItem("currentStep", String(currentStep));
+    }, [currentStep, hydrated]);
+
+    useEffect(() => {
+        const verificarPago = async () => {
+            try {
+                const res = await api.get("/payments/ultimo");
+
+                if (res.data.estado_id === 2) {
+                    // Pago aprobado
+                    setPagoOk(true);
+                } else {
+                    // Sin pagos o pendiente
+                    setPagoOk(false);
+                }
+
+            } catch (err) {
+                console.error("❌ Error consultando pago:", err);
+                setPagoOk(false); // fallback seguro
+            }
+        };
+
+        // Polling cada 5 segundos
+        const interval = setInterval(verificarPago, 5000);
+        verificarPago(); // 👈 ejecuta una vez apenas carga Step 5
+        return () => clearInterval(interval);
+    }, []);
+
+
 
     return (
         <div className="container-fluid p-4">
@@ -136,33 +323,30 @@ const CreateContract = () => {
                 </div>
             </div>
 
-            {/* Progress Steps */}
-            <div className="card border-0 shadow-sm mb-4">
-                <div className="card-body">
-                    <div className="d-flex justify-content-between align-items-center">
-                        {steps.map((step, index) => (
-                            <React.Fragment key={step.number}>
-                                <div className={`text-center ${currentStep >= step.number ? 'text-primary' : 'text-muted'}`}>
-                                    <div className={`rounded-circle mx-auto d-flex align-items-center justify-content-center mb-2 
-                                        ${currentStep >= step.number ? 'bg-primary text-white' : 'bg-light'}`}
-                                         style={{ width: '50px', height: '50px' }}>
-                                        <i className={`bi ${step.icon} fs-5`}></i>
-                                    </div>
-                                    <small className="d-none d-md-block">{step.title}</small>
-                                </div>
-                                {index < steps.length - 1 && (
-                                    <div className="flex-grow-1 mx-3">
-                                        <div className="progress" style={{ height: '2px' }}>
-                                            <div className="progress-bar"
-                                                 style={{ width: currentStep > step.number ? '100%' : '0%' }}></div>
-                                        </div>
-                                    </div>
-                                )}
-                            </React.Fragment>
-                        ))}
+            {/* Modal de éxito */}
+            {showModal && (
+                <div className="modal fade show d-block" tabIndex="-1" style={{ backgroundColor: "rgba(0,0,0,0.5)" }}>
+                    <div className="modal-dialog modal-dialog-centered">
+                        <div className="modal-content">
+                            <div className="modal-header">
+                                <h5 className="modal-title">Éxito</h5>
+                                <button type="button" className="btn-close" onClick={() => setShowModal(false)}></button>
+                            </div>
+                            <div className="modal-body">
+                                <p><i className="bi bi-check-circle-fill text-success me-2"></i>{successMsg}</p>
+                            </div>
+                            <div className="modal-footer">
+                                <button className="btn btn-secondary" onClick={() => setShowModal(false)}>
+                                    Cerrar
+                                </button>
+                                <button className="btn btn-primary" onClick={() => navigate("/contratos")}>
+                                    Ver contratos
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 </div>
-            </div>
+            )}
 
             {error && (
                 <div className="alert alert-danger alert-dismissible fade show mb-4" role="alert">
@@ -171,6 +355,35 @@ const CreateContract = () => {
                     <button type="button" className="btn-close" onClick={() => setError('')}></button>
                 </div>
             )}
+
+            {/* Progress Steps */}
+            <div className="card border-0 shadow-sm mb-4">
+                <div className="card-body">
+                    <div className="d-flex justify-content-between align-items-center">
+                        {steps.map((step, index) => (
+                            <React.Fragment key={step.number}>
+                                <div className={`text-center ${currentStep >= step.number ? 'text-primary' : 'text-muted'}`}>
+                                    <div
+                                        className={`rounded-circle mx-auto d-flex align-items-center justify-content-center mb-2 
+                    ${currentStep >= step.number ? 'bg-primary text-white' : 'bg-light'}`}
+                                        style={{ width: '50px', height: '50px' }}
+                                    >
+                                        <i className={`bi ${step.icon} fs-5`}></i>
+                                    </div>
+                                    <small className="d-none d-md-block">{step.title}</small>
+                                </div>
+                                {index < steps.length - 1 && (
+                                    <div className="flex-grow-1 mx-3">
+                                        <div className="progress" style={{ height: '2px' }}>
+                                            <div className="progress-bar" style={{ width: currentStep > step.number ? '100%' : '0%' }}></div>
+                                        </div>
+                                    </div>
+                                )}
+                            </React.Fragment>
+                        ))}
+                    </div>
+                </div>
+            </div>
 
             {/* Form Content */}
             <div className="card border-0 shadow-sm">
@@ -186,7 +399,7 @@ const CreateContract = () => {
                                         type="text"
                                         className="form-control"
                                         value={contractData.titulo}
-                                        onChange={(e) => setContractData({...contractData, titulo: e.target.value})}
+                                        onChange={(e) => setContractData({ ...contractData, titulo: e.target.value })}
                                         placeholder="Ej: Contrato de Prestación de Servicios"
                                     />
                                 </div>
@@ -195,7 +408,7 @@ const CreateContract = () => {
                                     <select
                                         className="form-select"
                                         value={contractData.tipo_contrato}
-                                        onChange={(e) => setContractData({...contractData, tipo_contrato: e.target.value})}
+                                        onChange={(e) => setContractData({ ...contractData, tipo_contrato: e.target.value })}
                                     >
                                         <option value="servicio">Servicio</option>
                                         <option value="compraventa">Compraventa</option>
@@ -212,7 +425,7 @@ const CreateContract = () => {
                                     className="form-control"
                                     rows="4"
                                     value={contractData.descripcion}
-                                    onChange={(e) => setContractData({...contractData, descripcion: e.target.value})}
+                                    onChange={(e) => setContractData({ ...contractData, descripcion: e.target.value })}
                                     placeholder="Breve descripción del contrato..."
                                 ></textarea>
                             </div>
@@ -223,86 +436,36 @@ const CreateContract = () => {
                                         type="date"
                                         className="form-control"
                                         value={contractData.fecha_vencimiento}
-                                        onChange={(e) => setContractData({...contractData, fecha_vencimiento: e.target.value})}
+                                        onChange={(e) => setContractData({ ...contractData, fecha_vencimiento: e.target.value })}
                                     />
                                 </div>
                             </div>
                         </div>
                     )}
 
-                    {/* Step 2: Content */}
+                    {/* Step 2: Content (solo archivo PDF) */}
                     {currentStep === 2 && (
                         <div>
                             <h4 className="mb-4">Contenido del Contrato</h4>
-
-                            {/* Tabs */}
-                            <ul className="nav nav-tabs mb-3">
-                                <li className="nav-item">
-                                    <button
-                                        type="button"
-                                        className={`nav-link ${activeTab === "text" ? "active" : ""}`}
-                                        onClick={() => {
-                                            setActiveTab("text");
-                                            setArchivo(null); // limpiar archivo si cambia a texto
-                                        }}
-                                    >
-                                        <i className="bi bi-pencil me-2"></i>
-                                        Editor de Texto
-                                    </button>
-                                </li>
-                                <li className="nav-item">
-                                    <button
-                                        type="button"
-                                        className={`nav-link ${activeTab === "file" ? "active" : ""}`}
-                                        onClick={() => {
-                                            setActiveTab("file");
-                                            setContractData({ ...contractData, contenido: "" }); // limpiar texto si cambia a archivo
-                                        }}
-                                    >
-                                        <i className="bi bi-file-earmark-arrow-up me-2"></i>
-                                        Subir Archivo
-                                    </button>
-                                </li>
-                            </ul>
-
-                            {/* Contenido según tab */}
-                            {activeTab === "text" && (
-                                <div className="mb-3">
-                                    <label className="form-label">Contenido del Contrato *</label>
-                                    <textarea
-                                        className="form-control"
-                                        rows="15"
-                                        value={contractData.contenido}
-                                        onChange={(e) =>
-                                            setContractData({ ...contractData, contenido: e.target.value })
-                                        }
-                                        placeholder="Escribe o pega el contenido del contrato aquí..."
-                                        style={{ fontFamily: "monospace" }}
-                                    ></textarea>
-                                </div>
-                            )}
-
-                            {activeTab === "file" && (
-                                <div className="border border-2 border-dashed rounded p-5 text-center bg-light">
-                                    <i className="bi bi-folder2-open display-4 text-primary"></i>
-                                    <p className="mt-3">Arrastra tu archivo aquí o selecciónalo</p>
-                                    <input
-                                        type="file"
-                                        accept=".pdf,.doc,.docx,.txt"
-                                        onChange={handleFileChange}
-                                        className="form-control mt-3"
-                                    />
-                                    {archivo && (
-                                        <div className="mt-3 alert alert-success">
-                                            Archivo seleccionado: <b>{archivo.name}</b>
-                                        </div>
-                                    )}
-                                </div>
-                            )}
+                            <div className="border border-2 border-dashed rounded p-5 text-center bg-light">
+                                <i className="bi bi-folder2-open display-4 text-primary"></i>
+                                <p className="mt-3">Seleccioná el archivo del contrato (solo PDF)</p>
+                                <input
+                                    type="file"
+                                    accept="application/pdf" // 👈 PDF únicamente
+                                    onChange={handleFileChange}
+                                    className="form-control mt-3"
+                                />
+                                {archivo && (
+                                    <div className="mt-3 alert alert-success">
+                                        Archivo seleccionado: <b>{archivo.name}</b> ({(archivo.size / 1024 / 1024).toFixed(1)} MB)
+                                    </div>
+                                )}
+                            </div>
 
                             <div className="alert alert-info mt-3">
                                 <i className="bi bi-info-circle me-2"></i>
-                                Sólo puedes elegir <b>una opción</b>: escribir el contrato o subir un archivo.
+                               El archivo debe ser PDF para crear el contrato.
                             </div>
                         </div>
                     )}
@@ -325,7 +488,7 @@ const CreateContract = () => {
                                                     placeholder="Juan Pérez"
                                                 />
                                             </div>
-                                            <div className="col-md-4 mb-2">
+                                            <div className="col-md-5 mb-2">
                                                 <label className="form-label">Email *</label>
                                                 <input
                                                     type="email"
@@ -335,7 +498,7 @@ const CreateContract = () => {
                                                     placeholder="juan@example.com"
                                                 />
                                             </div>
-                                            <div className="col-md-3 mb-2">
+                                            <div className="col-md-2 mb-2">
                                                 <label className="form-label">Rol</label>
                                                 <select
                                                     className="form-select"
@@ -350,6 +513,7 @@ const CreateContract = () => {
                                             <div className="col-md-1 mb-2">
                                                 {firmantes.length > 1 && (
                                                     <button
+                                                        type="button"
                                                         className="btn btn-outline-danger"
                                                         onClick={() => removeFirmante(index)}
                                                     >
@@ -357,15 +521,14 @@ const CreateContract = () => {
                                                     </button>
                                                 )}
                                             </div>
-
                                         </div>
-
                                     </div>
                                 </div>
                             ))}
+
                             <div className="alert alert-info mt-3">
                                 <i className="bi bi-info-circle me-2"></i>
-                                Agrege todas las partes involucradas en el contrato para que sean notificadas
+                                Agregá todas las partes involucradas para que sean notificadas e invitadas a firmar.
                             </div>
                             <button className="btn btn-outline-primary" onClick={addFirmante}>
                                 <i className="bi bi-plus-circle me-2"></i>
@@ -381,15 +544,13 @@ const CreateContract = () => {
                             <div className="row">
                                 <div className="col-md-6 mb-3">
                                     <label className="form-label">Red Blockchain</label>
-                                    <select 
+                                    <select
                                         className="form-select"
                                         value={contractData.blockchain_network}
-                                        onChange={(e) => setContractData({...contractData, blockchain_network: e.target.value})}
+                                        onChange={(e) => setContractData({ ...contractData, blockchain_network: e.target.value })}
                                     >
                                         <option value="polygon">Polygon</option>
-                                        {/* <option value="ethereum">Ethereum</option>
-                                        <option value="binance">Binance Smart Chain</option>
-                                        <option value="avalanche">Avalanche</option>*/}
+                                        {/* otras redes a futuro */}
                                     </select>
                                     <small className="text-muted">
                                         La red donde se registrará el hash del contrato
@@ -399,7 +560,6 @@ const CreateContract = () => {
                             <div className="alert alert-warning">
                                 <i className="bi bi-exclamation-triangle me-2"></i>
                                 <strong>Importante:</strong> Una vez creado el contrato en la blockchain, no podrá ser modificado.
-                                Asegúrate de revisar toda la información antes de continuar.
                             </div>
                             <h5 className="mt-4 mb-3">Opciones Adicionales</h5>
                             <div className="form-check mb-2">
@@ -429,9 +589,10 @@ const CreateContract = () => {
                             <h4 className="mb-4">Revisión Final</h4>
                             <div className="alert alert-info mb-4">
                                 <i className="bi bi-info-circle me-2"></i>
-                                Por favor revisa toda la información antes de crear el contrato.
+                                Revisá toda la información antes de crear el contrato.
                             </div>
-                            
+
+                            {/* Info Básica */}
                             <div className="card mb-3">
                                 <div className="card-header bg-light">
                                     <h6 className="mb-0">Información Básica</h6>
@@ -451,38 +612,67 @@ const CreateContract = () => {
                                 </div>
                             </div>
 
+                            {/* Firmantes */}
                             <div className="card mb-3">
                                 <div className="card-header bg-light">
                                     <h6 className="mb-0">Firmantes ({firmantes.length})</h6>
                                 </div>
                                 <div className="card-body">
                                     <ul className="list-unstyled mb-0">
-                                        {firmantes.map((f, i) => (
+                                        {sanitizeFirmantes(firmantes).map((f, i) => (
                                             <li key={i} className="mb-2">
                                                 <i className="bi bi-person me-2"></i>
-                                                {f.nombre} ({f.email}) - <span className="badge bg-secondary">{f.rol}</span>
+                                                {f.nombre} ({f.email}) -{" "}
+                                                <span className="badge bg-secondary">{f.rol}</span>
                                             </li>
                                         ))}
                                     </ul>
                                 </div>
                             </div>
 
-                            <div className="card">
+                            {/* Archivo */}
+                            <div className="card mb-3">
                                 <div className="card-header bg-light">
-                                    <h6 className="mb-0">Vista Previa del Contenido</h6>
+                                    <h6 className="mb-0">Archivo</h6>
                                 </div>
                                 <div className="card-body">
-                                    <pre style={{ maxHeight: '200px', overflow: 'auto' }}>
-                                        {contractData.contenido?.substring(0, 500)}...
-                                    </pre>
+                                    {archivo ? (
+                                        <p className="mb-0">
+                                            <strong>{archivo.name}</strong> —{" "}
+                                            {(archivo.size / 1024 / 1024).toFixed(1)} MB
+                                        </p>
+                                    ) : (
+                                        <p className="text-muted mb-0">No hay archivo seleccionado</p>
+                                    )}
                                 </div>
+                            </div>
+
+                            {/* Pago */}
+                            <div className="mt-4">
+                                {!pagoOk && (
+                                    <div className="alert alert-warning">
+                                        <i className="bi bi-credit-card me-2"></i>
+                                        Debes realizar el pago antes de poder crear el contrato.
+                                        <div className="mt-3">
+                                            <CheckoutButton
+                                                titulo={contractData.titulo}
+                                                firmantes={firmantes}
+                                                onPagoAprobado={() => setPagoOk(true)}
+                                            />
+                                        </div>
+                                    </div>
+                                )}
                             </div>
                         </div>
                     )}
 
+
+
+
+
                     {/* Navigation Buttons */}
                     <div className="d-flex justify-content-between mt-4">
-                        <button 
+                        <button
                             className="btn btn-outline-secondary"
                             onClick={handlePrevious}
                             disabled={currentStep === 1 || loading}
@@ -490,12 +680,12 @@ const CreateContract = () => {
                             <i className="bi bi-arrow-left me-2"></i>
                             Anterior
                         </button>
-                        
+
                         <div>
                             <Link to="/contratos" className="btn btn-outline-danger me-2">
                                 Cancelar
                             </Link>
-                            <button 
+                            <button
                                 className="btn btn-primary"
                                 onClick={handleNext}
                                 disabled={loading}
@@ -519,6 +709,7 @@ const CreateContract = () => {
                             </button>
                         </div>
                     </div>
+
                 </div>
             </div>
         </div>

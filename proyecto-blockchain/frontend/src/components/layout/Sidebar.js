@@ -21,29 +21,39 @@ const Sidebar = () => {
             badge: { text: 'Nuevo', color: 'success' }
         },
         {
-            title: 'Firmantes',
+            title: 'Pendientes',
             icon: 'bi-people',
-            path: '/firmantes',
+            path: '/firmas',
             badge: null
         },
-        {
+        /*{
             title: 'Transacciones',
             icon: 'bi-arrow-left-right',
             path: '/transacciones',
             badge: null
-        },
+        }*/,
         {
             title: 'Perfil',
             icon: 'bi-person',
             path: '/perfil',
             badge: null
         },
+        // 👇 Solo admins ven este menú
+        ...(user.rol === 'admin'
+                ? [{
+                    title: 'Panel Admin',
+                    icon: 'bi-speedometer2',
+                    path: '/admin',
+                    badge: null
+                }]
+                : []
+        )/*,
         {
             title: 'Configuración',
             icon: 'bi-gear',
             path: '/configuracion',
             badge: null
-        }
+        }*/
     ];
 
     const handleLogout = () => {
@@ -76,7 +86,7 @@ const Sidebar = () => {
                             <span className="fw-bold">BC System</span>
                         </div>
                     )}
-                    <button 
+                    <button
                         className="btn btn-sm btn-dark"
                         onClick={() => setIsCollapsed(!isCollapsed)}
                     >
@@ -87,7 +97,7 @@ const Sidebar = () => {
                 {/* User Info */}
                 <div className="p-3 border-bottom border-secondary">
                     <div className="d-flex align-items-center">
-                        <div className="bg-primary rounded-circle d-flex align-items-center justify-content-center" 
+                        <div className="bg-primary rounded-circle d-flex align-items-center justify-content-center"
                              style={{ width: '40px', height: '40px', minWidth: '40px' }}>
                             <i className="bi bi-person-fill text-white"></i>
                         </div>
@@ -109,7 +119,7 @@ const Sidebar = () => {
                             className={`d-flex align-items-center text-decoration-none text-white p-2 mb-1 rounded position-relative ${
                                 isActive(item.path) ? 'bg-primary' : 'hover-bg-secondary'
                             }`}
-                            style={{ 
+                            style={{
                                 transition: 'background-color 0.2s',
                                 overflow: 'hidden'
                             }}
@@ -132,7 +142,7 @@ const Sidebar = () => {
 
                 {/* Bottom Actions */}
                 <div className="mt-auto p-3 border-top border-secondary">
-                    <button 
+                    <button
                         className="btn btn-outline-danger w-100 d-flex align-items-center justify-content-center"
                         onClick={handleLogout}
                         title={isCollapsed ? 'Cerrar Sesión' : ''}
@@ -144,7 +154,7 @@ const Sidebar = () => {
             </div>
 
             {/* Overlay for mobile */}
-            <div 
+            <div
                 className="sidebar-overlay d-lg-none"
                 style={{
                     position: 'fixed',

@@ -1,20 +1,18 @@
 import express from "express";
 import dotenv from "dotenv";
 import cors from "cors";
-
 import userRoutes from "./routes/userRoutes.js";
 import contractRoutes from "./routes/contractRoutes.js";
-import signerRoutes from "./routes/signerRoutes.js";
 import transactionRoutes from "./routes/transactionRoutes.js";
+import signerRoutes from "./routes/signerRoutes.js";
+import paymentRoutes from "./routes/paymentRoutes.js";
+import kpiRoutes from "./routes/adminkpiRoutes.js";
+
 
 dotenv.config();
 console.log("DEBUG .env -> JWT_SECRET length:", (process.env.JWT_SECRET || "").length);
 
 const app = express();
-
-
-
-
 
 //5173
 app.use(cors({
@@ -39,7 +37,8 @@ app.use("/api/usuarios", userRoutes);
 app.use("/api/contratos", contractRoutes);
 app.use("/api/firmantes", signerRoutes);
 app.use("/api/transacciones", transactionRoutes);
-
+app.use("/api/payments", paymentRoutes);
+app.use("/api", kpiRoutes);
 // 404
 app.use((req, res) => res.status(404).json({ error: "Ruta no encontrada" }));
 

@@ -63,13 +63,20 @@ const Register = () => {
         }
     };
 
+    // 🔹 Validación extra igual que en backend
     const validateForm = () => {
+        const regex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9])/;
+
         if (formData.password !== formData.confirmPassword) {
             setError('Las contraseñas no coinciden');
             return false;
         }
         if (formData.password.length < 8) {
             setError('La contraseña debe tener al menos 8 caracteres');
+            return false;
+        }
+        if (!regex.test(formData.password)) {
+            setError('La contraseña debe contener al menos una mayúscula, una minúscula y un número');
             return false;
         }
         if (!acceptTerms) {

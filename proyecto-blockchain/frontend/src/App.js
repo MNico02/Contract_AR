@@ -9,9 +9,14 @@ import CreateContract from "./pages/CreateContract";
 import Profile from "./pages/Profile";
 import VerifyContract from "./pages/VerifyContract";
 import ProtectedRoute from "./components/ProtectedRoute";
+import ForgotPassword from "./pages/ForgotPassword";
 import MainLayout from "./components/layout/MainLayout";
 import 'bootstrap/dist/css/bootstrap.min.css';
 import 'bootstrap/dist/js/bootstrap.bundle.min.js';
+import ContractsToSign from "./pages/ContractsToSing";
+import AdminPage from "./pages/AdminPage";
+import Adminkpisales from "./pages/Adminkpisales";
+
 
 const App = () => {
     return (
@@ -22,7 +27,9 @@ const App = () => {
                 <Route path="/login" element={<Login />} />
                 <Route path="/registro" element={<Register />} />
                 <Route path="/verify" element={<VerifyContract />} />
-                
+                <Route path="/forgot-password" element={<ForgotPassword />} /> {/* <- Nueva ruta */}
+
+
                 {/* Protected Routes with Layout */}
                 <Route element={
                     <ProtectedRoute>
@@ -34,14 +41,20 @@ const App = () => {
                     <Route path="/contratos/nuevo" element={<CreateContract />} />
                     <Route path="/contratos/:id" element={<ContratoDetalle />} />
                     <Route path="/perfil" element={<Profile />} />
-                    
+                    <Route path="/firmas" element={<ContractsToSign />} />
+                    <Route path="/dashboard" element={<Dashboard />} />
+                    <Route path="/admin" element={<AdminPage />} />
+
+
+                    <Route path="/adminkpisales" element={<Adminkpisales />} />
+
+
+
+
+
+
                     {/* Placeholder routes for additional pages */}
-                    <Route path="/firmantes" element={
-                        <div className="container-fluid p-4">
-                            <h2>Gestión de Firmantes</h2>
-                            <p className="text-muted">Página en construcción...</p>
-                        </div>
-                    } />
+
                     <Route path="/transacciones" element={
                         <div className="container-fluid p-4">
                             <h2>Transacciones</h2>
