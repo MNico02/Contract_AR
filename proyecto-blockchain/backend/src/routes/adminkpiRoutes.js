@@ -3,7 +3,8 @@ import {
     getCrecimientoIngresos,
     getConversionContratos,
     getPendientesContratos,
-    getValorPorCliente
+    getValorPorCliente,
+    getConversionClientes
 } from "../controllers/adminkpiController.js";
 
 const router = express.Router();
@@ -13,5 +14,6 @@ router.get("/kpi/ingresos", getCrecimientoIngresos);
 router.get("/kpi/conversion", getConversionContratos);
 router.get("/kpi/pendientes", getPendientesContratos);
 router.get("/kpi/clientes", getValorPorCliente);
+router.get("/kpi/conversion-clientes", getConversionClientes);
 
 export default router;

@@ -76,3 +76,32 @@ export const getValorPorCliente = async (req, res) => {
         res.status(500).json({ error: "Error obteniendo valor por cliente" });
     }
 };
+// 5. Tasa de conversión de clientes
+export const getConversionClientes = async (req, res) => {
+    try {
+        const result = await db.query(`
+            WITH clientes_mes AS (
+                SELECT 
+                    DATE_TRUNC('month', fecha_creacion) AS mes,
+                    id_cliente,
+                    BOOL_OR(estado = 'Firmado') AS firmo_alguno
+                FROM contratos_kpi
+                GROUP BY 1, 2
+            )
+            SELECT
+                mes,
+                COUNT(*) AS clientes_totales,
+                COUNT(*) FILTER (WHERE firmo_alguno) AS clientes_convertidos,
+                COUNT(*) FILTER (WHERE firmo_alguno)::decimal 
+                    / NULLIF(COUNT(*), 0) * 100 AS conversion_pct
+            FROM clientes_mes
+            GROUP BY mes
+            ORDER BY mes;
+        `);
+
+        res.json(result.rows);
+    } catch (err) {
+        console.error("Error en getConversionClientes:", err);
+        res.status(500).json({ error: "Error obteniendo conversión de clientes" });
+    }
+};

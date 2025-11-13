@@ -168,7 +168,7 @@ const Dashboard = () => {
                 <div className="container-fluid px-4">
                     <a className="navbar-brand fw-bold" href="/dashboard">
                         <i className="bi bi-shield-lock-fill me-2"></i>
-                        Blockchain Contracts
+                        Contract_AR
                     </a>
                     <button className="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
                         <span className="navbar-toggler-icon"></span>
@@ -179,10 +179,16 @@ const Dashboard = () => {
                                 <VincularMetaMaskButton />
                             </li>
                             <li className="nav-item dropdown">
-                                <a className="nav-link dropdown-toggle text-white" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown">
+                                <button
+                                    className="nav-link dropdown-toggle text-white bg-transparent border-0"
+                                    id="navbarDropdown"
+                                    data-bs-toggle="dropdown"
+                                    aria-expanded="false"
+                                    type="button"
+                                >
                                     <i className="bi bi-person-circle me-2"></i>
                                     {user.nombre} {user.apellido}
-                                </a>
+                                </button>
                                 <ul className="dropdown-menu dropdown-menu-end">
                                     <li><Link to="/perfil" className="dropdown-item"><i className="bi bi-person me-2"></i>Mi Perfil</Link></li>
                                     <li><Link to="/configuracion" className="dropdown-item"><i className="bi bi-gear me-2"></i>Configuración</Link></li>
@@ -194,6 +200,7 @@ const Dashboard = () => {
                                     </li>
                                 </ul>
                             </li>
+
                         </ul>
                     </div>
                 </div>

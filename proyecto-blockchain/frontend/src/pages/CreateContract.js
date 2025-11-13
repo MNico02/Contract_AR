@@ -281,29 +281,40 @@ const CreateContract = () => {
     }, [currentStep, hydrated]);
 
     useEffect(() => {
+        let activo = true; // 🟢 evita actualizaciones si el componente ya se desmontó
+        let intervalo;
+
         const verificarPago = async () => {
             try {
                 const res = await api.get("/payments/ultimo");
+                if (!activo) return; // si desmontó, no setea estado
 
-                if (res.data.estado_id === 2) {
-                    // Pago aprobado
+                if (res.data?.estado_id === 2) {
                     setPagoOk(true);
                 } else {
-                    // Sin pagos o pendiente
                     setPagoOk(false);
                 }
-
             } catch (err) {
-                console.error("❌ Error consultando pago:", err);
-                setPagoOk(false); // fallback seguro
+                if (activo) {
+                    console.error("❌ Error consultando pago:", err);
+                    setPagoOk(false);
+                }
             }
         };
 
-        // Polling cada 5 segundos
-        const interval = setInterval(verificarPago, 5000);
-        verificarPago(); // 👈 ejecuta una vez apenas carga Step 5
-        return () => clearInterval(interval);
+        // Ejecuta una vez al montar
+        verificarPago();
+
+        // 🕒 Polling cada 5s (sin duplicarse)
+        intervalo = setInterval(verificarPago, 5000);
+
+        // Limpieza segura
+        return () => {
+            activo = false;
+            clearInterval(intervalo);
+        };
     }, []);
+
 
 
 
@@ -465,7 +476,7 @@ const CreateContract = () => {
 
                             <div className="alert alert-info mt-3">
                                 <i className="bi bi-info-circle me-2"></i>
-                               El archivo debe ser PDF para crear el contrato.
+                                El archivo debe ser PDF para crear el contrato.
                             </div>
                         </div>
                     )}
@@ -540,16 +551,16 @@ const CreateContract = () => {
                     {/* Step 4: Configuration */}
                     {currentStep === 4 && (
                         <div>
-                            <h4 className="mb-4">Configuración Blockchain</h4>
+                            <h4 className="mb-4">Configuración</h4>
                             <div className="row">
                                 <div className="col-md-6 mb-3">
-                                    <label className="form-label">Red Blockchain</label>
+                                    <label className="form-label">Red</label>
                                     <select
                                         className="form-select"
                                         value={contractData.blockchain_network}
                                         onChange={(e) => setContractData({ ...contractData, blockchain_network: e.target.value })}
                                     >
-                                        <option value="polygon">Polygon</option>
+                                        <option value="polygon">Elegir red</option>
                                         {/* otras redes a futuro */}
                                     </select>
                                     <small className="text-muted">
@@ -559,7 +570,7 @@ const CreateContract = () => {
                             </div>
                             <div className="alert alert-warning">
                                 <i className="bi bi-exclamation-triangle me-2"></i>
-                                <strong>Importante:</strong> Una vez creado el contrato en la blockchain, no podrá ser modificado.
+                                <strong>Importante:</strong> Una vez creado el contrato, no podrá ser modificado.
                             </div>
                             <h5 className="mt-4 mb-3">Opciones Adicionales</h5>
                             <div className="form-check mb-2">

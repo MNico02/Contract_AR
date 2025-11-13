@@ -9,6 +9,7 @@ const Adminkpisales = () => {
     const [conversion, setConversion] = useState([]);
     const [pendientes, setPendientes] = useState({});
     const [clientes, setClientes] = useState([]);
+    const [conversionClientes, setConversionClientes] = useState([]);
 
     useEffect(() => {
         fetch("http://localhost:3000/api/kpi/ingresos")
@@ -26,6 +27,10 @@ const Adminkpisales = () => {
         fetch("http://localhost:3000/api/kpi/clientes")
             .then(res => res.json())
             .then(setClientes);
+
+        fetch("http://localhost:3000/api/kpi/conversion-clientes")
+            .then(res => res.json())
+            .then(setConversionClientes);
     }, []);
 
     return (
@@ -191,6 +196,35 @@ const Adminkpisales = () => {
                         </div>
                     </div>
                 </div>
+
+                <div className="col-md-6 mb-4">
+                    <div className="card shadow-sm">
+                        <div className="card-header">Tasa de conversión de clientes</div>
+                        <div className="card-body">
+                            <ResponsiveContainer width="100%" height={250}>
+                                <LineChart data={conversionClientes}>
+                                    <CartesianGrid strokeDasharray="3 3" />
+                                    <XAxis
+                                        dataKey="mes"
+                                        tickFormatter={(v) =>
+                                            new Date(v).toLocaleDateString("es-AR", { month: "short", year: "numeric" })
+                                        }
+                                    />
+                                    <YAxis domain={[0, 100]} />
+                                    <Tooltip formatter={(v) => `${Number(v).toFixed(1)}%`} />
+                                    <Legend />
+                                    <Line type="monotone" dataKey="conversion_pct" stroke="#6f42c1" name="Conversión %" />
+                                </LineChart>
+                            </ResponsiveContainer>
+                        </div>
+                    </div>
+                </div>
+
+
+
+
+
+
             </div>
         </div>
     );

@@ -62,7 +62,7 @@ const Login = () => {
                             <div className="card-body p-5">
                                 <div className="text-center mb-4">
                                     <i className="bi bi-shield-lock-fill text-primary" style={{ fontSize: '3rem' }}></i>
-                                    <h3 className="mt-3 fw-bold">Blockchain Contracts</h3>
+                                    <h3 className="mt-3 fw-bold">Contract_AR</h3>
                                     <p className="text-muted">Ingresa a tu cuenta</p>
                                 </div>
 

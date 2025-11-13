@@ -170,14 +170,21 @@ const calcularMontoContrato = async (cantidadFirmantes) => {
     const result = await db.query(
         `SELECT monto_contrato, monto_firmante
          FROM gestiondecobros
-         ORDER BY fecha_actualizacion DESC
-         LIMIT 1`
+         ORDER BY fecha_actualizacion DESC LIMIT 1`
     );
 
     if (result.rows.length === 0) {
         throw new Error("No hay configuración de cobros en la base de datos.");
     }
 
-    const { monto_contrato, monto_firmante } = result.rows[0];
-    return Number(monto_contrato) + (cantidadFirmantes * Number(monto_firmante));
+    const {monto_contrato, monto_firmante} = result.rows[0];
+    const comision = 0.07865; // 6,5% + IVA
+
+    // monto que querés recibir
+    const monto_base = Number(monto_contrato) + (cantidadFirmantes * Number(monto_firmante));
+
+    // monto que tenés que cobrar para cubrir la comisión
+    const monto_cobrar = monto_base / (1 - comision);
+
+    return monto_cobrar.toFixed(2); // redondeado a 2 decimales
 };
