@@ -15,18 +15,18 @@ const Login = () => {
         e.preventDefault();
         setError('');
         setLoading(true);
-        
+
         try {
             const res = await api.post('/usuarios/login', { email, password });
             localStorage.setItem('token', res.data.token);
             localStorage.setItem('user', JSON.stringify(res.data.usuario));
-            
+
             if (rememberMe) {
                 localStorage.setItem('rememberEmail', email);
             } else {
                 localStorage.removeItem('rememberEmail');
             }
-            
+
             navigate('/dashboard');
         } catch (error) {
             if (error.response?.status === 404) {
@@ -62,7 +62,7 @@ const Login = () => {
                             <div className="card-body p-5">
                                 <div className="text-center mb-4">
                                     <i className="bi bi-shield-lock-fill text-primary" style={{ fontSize: '3rem' }}></i>
-                                    <h3 className="mt-3 fw-bold">Blockchain Contracts</h3>
+                                    <h3 className="mt-3 fw-bold">Contract_AR</h3>
                                     <p className="text-muted">Ingresa a tu cuenta</p>
                                 </div>
 
@@ -70,9 +70,9 @@ const Login = () => {
                                     <div className="alert alert-danger alert-dismissible fade show" role="alert">
                                         <i className="bi bi-exclamation-triangle-fill me-2"></i>
                                         {error}
-                                        <button 
-                                            type="button" 
-                                            className="btn-close" 
+                                        <button
+                                            type="button"
+                                            className="btn-close"
                                             onClick={() => setError('')}
                                         ></button>
                                     </div>
@@ -141,8 +141,8 @@ const Login = () => {
                                         </div>
                                     </div>
 
-                                    <button 
-                                        className="btn btn-primary w-100 py-2 mb-3" 
+                                    <button
+                                        className="btn btn-primary w-100 py-2 mb-3"
                                         type="submit"
                                         disabled={loading}
                                     >

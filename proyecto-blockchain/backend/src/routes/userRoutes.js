@@ -1,42 +1,63 @@
 import express from "express";
-import { 
-    getUsers, 
-    getUserById, 
-    createUser, 
+import {
+    getUsers,
+    getUserById,
+    createUser,
     updateUser,
     changePassword,
     getUserActivity,
     getUserStats,
     deleteUser,
-    loginUsuario, 
-    createTestUser  
+    loginUsuario,
+    createTestUser,
+    updateProfile,
+    forgotPassword,
+    resetPassword,
+    verifyResetCode,
+    vincularWallet
 } from "../controllers/userController.js";
 import { verificarToken, verificarRol } from "../middleware/authMiddleware.js";
+import { generarNonce, obtenerNonce } from "../controllers/userController.js";
 
 const router = express.Router();
 
-// Rutas públicas
+/* --------- RUTAS PÚBLICAS --------- */
 router.post("/login", loginUsuario);
 router.post("/register", createUser);
 
-// Ruta temporal para crear usuario de prueba
+// Usuario de prueba (público): habilito POST y GET
 router.post("/create-test", createTestUser);
 router.get("/create-test", createTestUser);
 
-// Rutas protegidas
-router.use(verificarToken); // Aplicar middleware a todas las rutas siguientes
+// Recuperación de contraseña
+router.post("/forgot-password", forgotPassword);
+router.post("/verify-reset-code", verifyResetCode);
+router.post("/reset-password", resetPassword);
+
+/* --------- RUTAS PROTEGIDAS --------- */
+router.use(verificarToken);
 
 // Obtener todos los usuarios (solo admin)
 router.get("/", verificarRol(["admin"]), getUsers);
 
-// Rutas de usuario específico
+// 🔹 Nueva ruta para que el usuario actual actualice su perfil
+router.put("/profile", updateProfile);
+
+// ⚡ Primero las rutas específicas
+router.put("/:id/password", changePassword);
+router.get("/:id/activity", getUserActivity);
+router.get("/:id/stats", getUserStats);
+
+// Después las rutas genéricas con solo :id
 router.get("/:id", getUserById);
 router.put("/:id", updateUser);
 router.delete("/:id", verificarRol(["admin"]), deleteUser);
 
-// Rutas adicionales
-router.put("/:id/password", changePassword);
-router.get("/:id/activity", getUserActivity);
-router.get("/:id/stats", getUserStats);
+// Nueva ruta para vincular wallet
+router.post("/vincular-wallet", vincularWallet);
+
+// Nonce
+router.post("/nonce/generar", generarNonce);
+router.get("/nonce", obtenerNonce);
 
 export default router;

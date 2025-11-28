@@ -1,29 +1,33 @@
 import express from "express";
 import dotenv from "dotenv";
+import cors from "cors";
 import userRoutes from "./routes/userRoutes.js";
 import contractRoutes from "./routes/contractRoutes.js";
-import signerRoutes from "./routes/signerRoutes.js";
 import transactionRoutes from "./routes/transactionRoutes.js";
-import cors from "cors";
-
+import signerRoutes from "./routes/signerRoutes.js";
+import paymentRoutes from "./routes/paymentRoutes.js";
+import kpiRoutes from "./routes/adminkpiRoutes.js";
 
 
 dotenv.config();
+console.log("DEBUG .env -> JWT_SECRET length:", (process.env.JWT_SECRET || "").length);
+
 const app = express();
 
+//5173
+app.use(cors({
+    origin: "http://localhost:3001",
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+    credentials: true
+}));
+app.use(express.json());
 
-// Logger de toda request
+// Logger de toda request (después de CORS y JSON)
 app.use((req, _res, next) => {
     console.log(`[REQ] ${req.method} ${req.originalUrl}`);
     next();
 });
-
-app.use(express.json());
-app.use(cors({
-    origin: 'http://localhost:5173',  // o "*" si estás en desarrollo
-    credentials: true
-}));
-
 
 // Healthcheck
 app.get("/health", (_req, res) => res.json({ ok: true }));
@@ -33,7 +37,8 @@ app.use("/api/usuarios", userRoutes);
 app.use("/api/contratos", contractRoutes);
 app.use("/api/firmantes", signerRoutes);
 app.use("/api/transacciones", transactionRoutes);
-
+app.use("/api/payments", paymentRoutes);
+app.use("/api", kpiRoutes);
 // 404
 app.use((req, res) => res.status(404).json({ error: "Ruta no encontrada" }));
 
